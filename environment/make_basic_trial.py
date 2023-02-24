@@ -48,6 +48,7 @@ with open('basic_tp.json','w') as tpfl:
 # Find the path of objects over 2s
 # Comes out as a dict with the moveable object names
 # (PLACED for the placed tool) with a list of positions over time each
+#TODO: extract states
 path_dict, success, time_to_success = tp.observePlacementPath(toolname="obj1",position=(90,400),maxtime=20.)
 print("Action was successful? ", success)
 
@@ -56,7 +57,7 @@ demonstrateTPPlacement(tp, 'obj1', (90, 400))
 
 # Load level in from json file
 # For levels used in experiment, check out Level_Definitions/
-json_dir = "./Trials/Original/"
+json_dir = "../../Trials/Original/"
 tnm = "Basic"
 
 with open(json_dir+tnm+'.json','r') as f:

@@ -457,6 +457,7 @@ class PGCompound(PGObject):
                 self.polylist.append(rcverts)
             mass = self._area*density
             self._cpBody = pm.Body(mass, imom)
+            space.add(self._cpBody)
             for sh in self._cpShapes:
                 sh.body = self._cpBody
                 sh.elasticity = elasticity
@@ -465,7 +466,7 @@ class PGCompound(PGObject):
                 sh.name = name
                 space.add(sh)
             self._cpBody.position = loc
-            space.add(self._cpBody)
+
 
     def getPolys(self):
         if self.isStatic():
