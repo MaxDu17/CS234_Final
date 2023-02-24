@@ -10,7 +10,7 @@ import operator
 
 __all__ = ['areaForSegment','areaForPoly','centroidForPoly','recenterPoly','objectComplexity',
            'segs2Poly','polyValidate', 'word2Color', 'distanceToObject','objectBoundingBox',
-           'filterCollisionEvents', 'lineToPointDist', 
+           'filterCollisionEvents', 'lineToPointDist',
            'stripGoal', 'updateObjects',
            'NpEncoder']
 
@@ -19,7 +19,7 @@ __all__ = ['areaForSegment','areaForPoly','centroidForPoly','recenterPoly','obje
 def areaForPoly(verts):
     area = 0
     #pmv = map(lambda v: pm.Vec2d(v), verts)
-    pmv = [pm.Vec2d(v) for v in list(verts)]
+    pmv = [pm.Vec2d(*v) for v in list(verts)]
     for i in range(len(pmv)):
         v1 = pmv[i]
         v2 = pmv[(i+1) % len(pmv)]
@@ -29,7 +29,7 @@ def areaForPoly(verts):
 def centroidForPoly(verts):
     tsum = 0
     vsum = pm.Vec2d(0,0)
-    pmv = [pm.Vec2d(v) for v in list(verts)]
+    pmv = [pm.Vec2d(*v) for v in list(verts)]
     #pmv = [*map(lambda v: pm.Vec2d(v), verts)]
     for i in range(len(pmv)):
         v1 = pmv[i]
@@ -46,6 +46,8 @@ def recenterPoly(verts):
     return verts
 
 def areaForSegment(a, b, r):
+    import ipdb
+    ipdb.set_trace()
     va = pm.Vec2d(a)
     vb = pm.Vec2d(b)
     return r * (np.pi*r + 2*va.get_distance(vb))
@@ -57,7 +59,7 @@ def _isleft(spt, ept, testpt):
     return cross > 0
 
 def segs2Poly(seglist, r):
-    vlist = [pm.Vec2d(v) for v in seglist]
+    vlist = [pm.Vec2d(*v) for v in seglist]
     #vlist = list(map(lambda p: pm.Vec2d(p), seglist))
     # Start by figuring out the initial edge (ensure ccw winding)
     iseg = vlist[1] - vlist[0]
@@ -95,8 +97,8 @@ def segs2Poly(seglist, r):
         angn = (angp + (angi / 2.)) % (2*np.pi)
         if angn < 0:
             angn += 2*np.pi
-        unitn = pm.Vec2d.unit()
-        unitn.angle = angn
+        unitn = pm.Vec2d.unit().rotated(angn)
+        # unitn.angle = angn
         xdiff = r if unitn.x >= 0 else -r
         ydiff = r if unitn.y >= 0 else -r
         next3 = (pi.x + xdiff, pi.y + ydiff)

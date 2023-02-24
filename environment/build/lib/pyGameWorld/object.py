@@ -286,7 +286,7 @@ class PGContainer(PGObject):
         if density != 0:
             ptlist = recenterPoly(ptlist)
         #self.seglist = map(lambda p: pm.Vec2d(p), ptlist)
-        self.seglist = [pm.Vec2d(p) for p in ptlist]
+        self.seglist = [pm.Vec2d(*p) for p in ptlist]
 
         self._area = np.pi * self.r * self.r
         imom = 0
@@ -339,7 +339,7 @@ class PGContainer(PGObject):
             for i in range(len(self.polylist)):
                 tpol = []
                 for j in range(len(self.polylist[i])):
-                    vj = pm.Vec2d(self.polylist[i][j])
+                    vj = pm.Vec2d(*self.polylist[i][j])
                     tpol.append(np.array(pos + vj.rotated(rot)))
                 polys.append(tpol)
         return polys
@@ -419,7 +419,7 @@ class PGCompound(PGObject):
                 sh.name = name
                 space.add(sh)
                 self._cpShapes.append(sh)
-                self.polylist.append([pm.Vec2d(p) for p in vertices])
+                self.polylist.append([pm.Vec2d(*p) for p in vertices])
 
             gx = gy = 0
             for pc, a in zip(polyCents, areas):
@@ -452,7 +452,7 @@ class PGCompound(PGObject):
             for pc, a, verts in zip(polyCents, areas, polygons):
                 pos = pm.Vec2d(pc[0] - loc.x, pc[1] - loc.y)
                 imom += pm.moment_for_poly(density*a, vertices, pos)
-                rcverts = [pm.Vec2d([p[0]+pos.x, p[1]+pos.y]) for p in verts]
+                rcverts = [pm.Vec2d(*[p[0]+pos.x, p[1]+pos.y]) for p in verts]
                 self._cpShapes.append(pm.Poly(None, rcverts))
                 self.polylist.append(rcverts)
             mass = self._area*density
