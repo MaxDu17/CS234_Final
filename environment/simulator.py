@@ -9,9 +9,9 @@ import imageio
 
 class ToolEnv:
     def __init__(self, environment = 0):
-        self.json_dir = "./Trials/Original/"
+        self.json_dir = "environment/Trials/Original/"
         self.tp = None
-        self.worlds = os.listdir("./Trials/Original")
+        self.worlds = os.listdir("environment/Trials/Original")
         print(self.worlds)
 
         # relevant env:
@@ -29,6 +29,7 @@ class ToolEnv:
         self.state = None
         self.wd = None
 
+
     def clip(self, arr):
         if arr[0] < 0:
             arr[0] = 0
@@ -45,7 +46,7 @@ class ToolEnv:
     def step(self, action):
         tool_select = action[0]
         position = action[1]
-        assert tool_select < 2 and tool_select >= 0
+        assert tool_select <= 2 and tool_select >= 0
         position = self.clip(position)
 
         # path_dict, success, time_to_success = self.tp.observePlacementPath(toolname="obj1", position=(90, 400), maxtime=20.)
@@ -54,7 +55,7 @@ class ToolEnv:
         self.state = path_dict
         self.wd = wd
         #path_dict["Ball"] contains trajectory of the ball through time
-        demonstrateTPPlacement(self.tp, 'obj1', (90, 400))
+        demonstrateTPPlacement(self.tp, self.action_dict[tool_select], position)
         #perchance derive from path_dict the rewaard
         return success
 
@@ -64,8 +65,8 @@ class ToolEnv:
         #TODO replace with actual byte array
 
 
-env = ToolEnv()
-env.reset()
-action = (0, [90, 400])
-print(env.step(action))
-env.render()
+# env = ToolEnv()
+# env.reset()
+# action = (0, [90, 400])
+# print(env.step(action))
+# env.render()
