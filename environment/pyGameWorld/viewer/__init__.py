@@ -13,7 +13,7 @@ __all__ = ['drawWorld', 'demonstrateWorld', 'demonstrateTPPlacement',
            'visualizePath', 'drawPathSingleImage', 'drawPathSingleImageWithTools', 'drawWorldWithTools', 'visualizeScreen', 'drawPathSingleImageBasic',
            'makeImageArray', 'makeImageArrayNoPath','drawTool', '_draw_line_gradient',
            'drawMultiPathSingleImage', 'drawMultiPathSingleImageBasic']
-
+#
 COLORS=[(255,0,255,255), (225,225,0, 255),(0, 255, 255, 255)]
 WHITE = (255, 255, 255, 255)
 def _lighten_rgb(rgba, amt=.2):
@@ -203,6 +203,7 @@ def demonstrateTPPlacement(toolpicker, toolname, position, maxtime=20.,
     dispFinish = True
     while t < etime:
         for onm, o in world.objects.items():
+            # print(onm)
             if not o.isStatic():
                 o.setPos(pth[onm][0][i])
                 o.setRot(pth[onm][1][i])
@@ -298,6 +299,7 @@ def drawPathSingleImageWithTools(tp, path, pathSize=3, lighten_amt=.5, worlddict
         return [int(i) for i in world._invert(p)]
     # draw the paths in the background
     for onm, o in world.objects.items():
+        # print(onm)
         if not o.isStatic():
             if o.type == 'Container':
                 col = o.outer_color
