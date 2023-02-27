@@ -97,8 +97,8 @@ class PolicyGradient(object):
         while t < self.batch_size:
             env.reset()
             action = self.policy.act()
-            print(action)
             reward = env.step(action)
+            # print(action, reward)
             t += 1
             episode_rewards.append(reward)
 
@@ -107,8 +107,6 @@ class PolicyGradient(object):
                 "action": action,
             }
             paths.append(path)
-        import ipdb
-        ipdb.set_trace()
         return paths, episode_rewards
 
 
@@ -137,14 +135,14 @@ class PolicyGradient(object):
         advantages = np2torch(advantages)
         #######################################################
         #########   YOUR CODE HERE - 5-7 lines.    ############
-        import ipdb
-        ipdb.set_trace()
-        actions = torch.tensor(actions)
+        # actions = torch.tensor(actions)
         log_probs = self.policy.log_prob(actions) #should be batch size
         loss = -torch.dot(log_probs, advantages) / advantages.shape[0]
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
+        # print(loss)
+        self.policy.print_repr()
 
         #######################################################
         #########          END YOUR CODE.          ############
@@ -168,8 +166,8 @@ class PolicyGradient(object):
             # collect a minibatch of samples
             paths, total_rewards = self.sample_path(self.env)
             all_total_rewards.extend(total_rewards)
-            actions = np.concatenate([path["action"] for path in paths])
-            rewards = np.concatenate([path["reward"] for path in paths])
+            actions = np.stack([path["action"] for path in paths])
+            rewards = np.stack([path["reward"] for path in paths])
             returns = rewards #only true because it's one-step return
 
             # # advantage will depend on the baseline implementation
@@ -188,6 +186,7 @@ class PolicyGradient(object):
                 t, avg_reward, sigma_reward
             )
             print(msg)
+            # self.env.render(t)
 
     def evaluate(self, env=None, num_episodes=1):
         pass
