@@ -14,12 +14,12 @@ class GaussianToolPolicy(nn.Module):
         # assuming that bounds is a single number, and the environment is a square
 
         self.tool_distribution = nn.Parameter(torch.ones(self.ntools))
-        self.log_std = nn.Parameter(-3 * torch.ones(self.ntools, 2)) #start wide
+        self.log_std = nn.Parameter(-5 * torch.ones(self.ntools, 2)) #start wide
 
         prior = torch.ones(self.ntools, 2)
         #"cheating"
         prior[:, 0] *= -0.7 #(self.bounds / 4)
-        prior[:, 1] *= 1.33 #(self.bounds / 2)
+        prior[:, 1] *= 0.33 #(self.bounds / 2)
         self.means = nn.Parameter(prior)
 
 

@@ -44,7 +44,7 @@ class ToolEnv:
         return arr
 
 
-    def step(self, action: np.array) -> float:
+    def step(self, action: np.array, display = False) -> float:
         tool_select = action[0]
         position = (action[1 : ] + 1) * (self.dims[0] / 2) #shift and scale from (-1, 1) to (0, 600)
         position = position.tolist()
@@ -54,6 +54,7 @@ class ToolEnv:
         # path_dict, success, time_to_success = self.tp.observePlacementPath(toolname="obj1", position=(90, 400), maxtime=20.)
         # path_dict, success, time_to_success = self.tp.observePlacementPath(toolname=self.action_dict[action[0]], position=action[1], maxtime=20.)
         path_dict, success, time_to_success, wd = self.tp.observeFullPlacementPath(toolname=self.action_dict[tool_select], position=position, maxtime=20., returnDict=True)
+        print(success)
         # print(tool_select, position, success)
         if success is None:
             return 0.0 #invalid placement
@@ -61,7 +62,8 @@ class ToolEnv:
         self.state = path_dict
         self.wd = wd
         #path_dict["Ball"] contains trajectory of the ball through time
-        demonstrateTPPlacement(self.tp, self.action_dict[tool_select], position)
+        if display:
+            demonstrateTPPlacement(self.tp, self.action_dict[tool_select], position)
         #perchance derive from path_dict the rewaard
         return float(success)
 

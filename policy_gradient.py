@@ -186,6 +186,12 @@ class PolicyGradient(object):
                 t, avg_reward, sigma_reward
             )
             print(msg)
+
+            # RENDERING FOR US
+            env.reset()
+            action = self.policy.act()
+            env.step(action, display = True)
+
             # self.env.render(t)
 
     def evaluate(self, env=None, num_episodes=1):
