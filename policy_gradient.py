@@ -33,13 +33,16 @@ class PolicyGradient(object):
         self.env = env
         # self.env.seed(self.seed)
         self.batch_size = 10
-        self.lr = 3e-2
+        self.lr = 0.001 #3e-2
 
 
     def init_policy(self):
-        self.policy = GaussianToolPolicy(ntools = 3, bounds = 600)
+        self.policy = GaussianToolPolicy(ntools = 3, nsteps = 100) #arbitrary steps for now; should converge very quickly
+        # import ipdb
+        # ipdb.set_trace()
         self.policy.to("cuda" if torch.cuda.is_available() else "cpu")
         self.optimizer = torch.optim.Adam(self.policy.parameters(), lr=self.lr)
+        # self.optimizer = torch.optim.SGD(self.policy.parameters(), lr=self.lr)
 
     def init_averages(self):
         """
@@ -97,16 +100,20 @@ class PolicyGradient(object):
         while t < self.batch_size:
             env.reset()
             action = self.policy.act()
-            reward = env.step(action)
-            # print(action, reward)
-            t += 1
-            episode_rewards.append(reward)
+            #COUNTERFACTUAL SAMPLING
+            for i in range(3):
+                action[0] = i
+                reward = env.step(action)
 
-            path = {
-                "reward": reward,
-                "action": action,
-            }
-            paths.append(path)
+                episode_rewards.append(reward)
+
+                paths.append({
+                    "reward": reward,
+                    "action": action,
+                })
+            t += 1
+
+
         return paths, episode_rewards
 
 
@@ -138,11 +145,13 @@ class PolicyGradient(object):
         # actions = torch.tensor(actions)
         log_probs = self.policy.log_prob(actions) #should be batch size
         loss = -torch.dot(log_probs, advantages) / advantages.shape[0]
+        print(loss)
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
         # print(loss)
         self.policy.print_repr()
+
 
         #######################################################
         #########          END YOUR CODE.          ############
@@ -177,6 +186,7 @@ class PolicyGradient(object):
             #     self.baseline_network.update_baseline(returns, observations)
 
             self.update_policy(actions, returns)
+            self.policy.anneal_epsilon(t)
 
             # loggin
             # compute reward statistics for this batch and log

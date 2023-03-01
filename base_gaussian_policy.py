@@ -7,21 +7,30 @@ import numpy as np
 
 
 class GaussianToolPolicy(nn.Module):
-    def __init__(self, ntools, bounds):
+    def __init__(self, ntools, nsteps):
         nn.Module.__init__(self)
         self.ntools = ntools
-        self.bounds = bounds
         # assuming that bounds is a single number, and the environment is a square
 
         self.tool_distribution = nn.Parameter(torch.ones(self.ntools))
-        self.log_std = nn.Parameter(-5 * torch.ones(self.ntools, 2)) #start wide
+        self.log_std = nn.Parameter(-1.79 * torch.ones(self.ntools, 2)) #start wide
 
-        prior = torch.ones(self.ntools, 2)
-        #"cheating"
-        prior[:, 0] *= -0.7 #(self.bounds / 4)
-        prior[:, 1] *= 0.33 #(self.bounds / 2)
-        self.means = nn.Parameter(prior)
+        self.prior = nn.Parameter(torch.tensor([-0.66, 0.33]) , requires_grad = False) # [100, 215] is the real ball
+        self.prior_stdev = nn.Parameter(torch.tensor([-3, -2]), requires_grad = False)
 
+        self.means = nn.Parameter(torch.zeros(self.ntools, 2)) # start in the middle
+        self.epsilon = 0.1
+        self.eps_begin = 0.1
+        self.nsteps = nsteps
+
+    def px_to_action(self, val):
+        # helper function that scales pixels to the value
+        recentered = val - 300
+        return recentered / 300
+
+    def anneal_epsilon(self, t):
+        self.epsilon = self.eps_begin + (min(t, self.nsteps) / self.nsteps) * (self.eps_end - self.eps_begin)
+        print("annealed!", self.epsilon)
 
     def act(self, obs = None): #does not take an observation
         tool_dist = ptd.categorical.Categorical(logits=self.tool_distribution)
@@ -29,7 +38,10 @@ class GaussianToolPolicy(nn.Module):
         sampled_dist_mean = self.means[sampled_tool]
         sampled_dist_log_std = self.log_std[sampled_tool]
 
-        place_dist = ptd.MultivariateNormal(sampled_dist_mean, torch.diag(torch.exp(sampled_dist_log_std)))
+        if np.random.rand() < self.epsilon:
+            place_dist = ptd.MultivariateNormal(sampled_dist_mean, torch.diag(torch.exp(sampled_dist_log_std)))
+        else:
+            place_dist = ptd.MultivariateNormal(self.prior, torch.diag(torch.exp(sampled_dist_log_std))) #INCORRECT
         sampled_placement = place_dist.sample()
         #TODO: should be clipping to fit within the bounds
         action = np.zeros((3))
@@ -44,6 +56,8 @@ class GaussianToolPolicy(nn.Module):
         tool_dist = ptd.categorical.Categorical(logits=self.tool_distribution)
         tool_log_prob = tool_dist.log_prob(tool)
         covs = torch.diag_embed(torch.exp(self.log_std[tool]), offset=0, dim1=-2, dim2=-1)
+        # import ipdb
+        # ipdb.set_trace()
         place_dist = ptd.MultivariateNormal(self.means[tool], covs)
         placement_log_prob = place_dist.log_prob(placement)
         return tool_log_prob + placement_log_prob
