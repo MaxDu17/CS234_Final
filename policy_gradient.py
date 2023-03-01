@@ -109,10 +109,10 @@ class PolicyGradient(object):
 
                 paths.append({
                     "reward": reward,
-                    "action": action,
+                    "action": action.copy(),
                 })
-            t += 1
 
+            t += 1
 
         return paths, episode_rewards
 
@@ -148,6 +148,8 @@ class PolicyGradient(object):
         print(loss)
         self.optimizer.zero_grad()
         loss.backward()
+        print(self.policy.log_std.grad) #should gbe all populated
+        print(self.policy.means.grad) #should be all populated
         self.optimizer.step()
         # print(loss)
         self.policy.print_repr()

@@ -73,6 +73,7 @@ class ToolEnv:
             return 0.0
         if not success:
             #shaped reward
+            # demonstrateTPPlacement(self.tp, self.action_dict[tool_select], position)
             goal = wd["objects"]["Goal"]
             middle_of_goal = self.middle_of(goal["points"])
             baseline_distance = self.dist(path_dict["Ball"][0][0], middle_of_goal)
