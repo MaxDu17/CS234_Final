@@ -211,15 +211,17 @@ class PolicyGradient(object):
 
             # self.env.render(t)
         fig, ax = plt.subplots()
+        print(rewards_eval)
         ax.plot(rewards_eval)
-        ax.savefig("test.png")
+        fig.savefig("test.png")
+        plt.show()
 
     def evaluate(self, env=None, num_episodes=1):
         avg_reward = 0
         for i in range(20):
             self.env.reset()
             action = self.policy.act(low_noise = True)
-            avg_reward += self.env.step(action, display = (i % 5 == 0))
+            avg_reward += self.env.step(action, display = False)# (i % 5 == 0))
 
         return avg_reward / 20
 
