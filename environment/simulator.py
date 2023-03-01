@@ -82,7 +82,7 @@ class ToolEnv:
         else:
             reward = 1.0
 
-        print(reward)
+        # print(reward)
         # print(tool_select, position, success)
 
         # TODO: get proper reward (by looking at where the ball is relative to the goal

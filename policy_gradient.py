@@ -5,6 +5,8 @@ import os
 from network_utils import np2torch
 from base_gaussian_policy import GaussianToolPolicy
 from environment.simulator import ToolEnv
+import matplotlib.pyplot as plt
+
 
 class PolicyGradient(object):
     """
@@ -33,7 +35,8 @@ class PolicyGradient(object):
         self.env = env
         # self.env.seed(self.seed)
         self.batch_size = 10
-        self.lr = 0.001 #3e-2
+        # self.lr = 3e-2
+        self.lr = 0.5
 
 
     def init_policy(self):
@@ -41,7 +44,8 @@ class PolicyGradient(object):
         # import ipdb
         # ipdb.set_trace()
         self.policy.to("cuda" if torch.cuda.is_available() else "cpu")
-        self.optimizer = torch.optim.Adam(self.policy.parameters(), lr=self.lr)
+        # self.optimizer = torch.optim.Adam(self.policy.parameters(), lr=self.lr)
+        self.optimizer = torch.optim.SGD(self.policy.parameters(), lr=self.lr)
         # self.optimizer = torch.optim.SGD(self.policy.parameters(), lr=self.lr)
 
     def init_averages(self):
@@ -148,8 +152,8 @@ class PolicyGradient(object):
         print(loss)
         self.optimizer.zero_grad()
         loss.backward()
-        print(self.policy.log_std.grad) #should gbe all populated
-        print(self.policy.means.grad) #should be all populated
+        # print(self.policy.log_std.grad) #should gbe all populated
+        # print(self.policy.means.grad) #should be all populated
         self.optimizer.step()
         # print(loss)
         self.policy.print_repr()
@@ -172,7 +176,7 @@ class PolicyGradient(object):
             []
         )  # the returns of all episodes samples for training purposes
         averaged_total_rewards = []  # the returns for each iteration
-
+        rewards_eval = list()
         for t in range(100):
             # collect a minibatch of samples
             paths, total_rewards = self.sample_path(self.env)
@@ -200,14 +204,24 @@ class PolicyGradient(object):
             print(msg)
 
             # RENDERING FOR US
-            env.reset()
-            action = self.policy.act()
-            env.step(action, display = True)
+            if t % 5 == 0:
+                evals = self.evaluate()
+                print("LOW NOISE EVAL: ", evals)
+                rewards_eval.append(evals)
 
             # self.env.render(t)
+        fig, ax = plt.subplots()
+        ax.plot(rewards_eval)
+        ax.savefig("test.png")
 
     def evaluate(self, env=None, num_episodes=1):
-        pass
+        avg_reward = 0
+        for i in range(20):
+            self.env.reset()
+            action = self.policy.act(low_noise = True)
+            avg_reward += self.env.step(action, display = (i % 5 == 0))
+
+        return avg_reward / 20
 
     def run(self):
         """

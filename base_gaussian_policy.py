@@ -12,8 +12,9 @@ class GaussianToolPolicy(nn.Module):
         self.ntools = ntools
         # assuming that bounds is a single number, and the environment is a square
 
-        self.tool_distribution = nn.Parameter(torch.ones(self.ntools))
+        self.tool_distribution = nn.Parameter(torch.zeros(self.ntools))
         self.log_std = nn.Parameter(-1.79 * torch.ones(self.ntools, 2)) #start wide
+        # self.log_std = nn.Parameter(-3 * torch.ones(self.ntools, 2)) #start wide
 
         self.prior = nn.Parameter(torch.tensor([-0.66, 0.33]) , requires_grad = False) # [100, 215] is the real ball
         self.prior_stdev = nn.Parameter(torch.tensor([-3.0, -2.0]), requires_grad = False)
@@ -34,7 +35,17 @@ class GaussianToolPolicy(nn.Module):
         self.epsilon = self.eps_begin + (min(t, self.nsteps) / self.nsteps) * (self.eps_end - self.eps_begin)
         print("annealed!", self.epsilon)
 
-    def act(self, obs = None): #does not take an observation
+    def act(self, obs = None, low_noise = False): #does not take an observation
+        if low_noise:
+            tool_dist = ptd.categorical.Categorical(logits=self.tool_distribution * 8)
+            tool = tool_dist.sample()
+            place_dist = ptd.MultivariateNormal(self.means[tool], torch.diag(torch.exp(self.log_std[tool] - 5)))
+            place_sample = place_dist.sample()
+            action = np.zeros((3))
+            action[0] = tool.item()
+            action[1:] = place_sample.detach().cpu().numpy()
+            return action
+
         tool_dist = ptd.categorical.Categorical(logits=self.tool_distribution)
         sampled_tool = tool_dist.sample()
         sampled_dist_mean = self.means[sampled_tool]
