@@ -74,7 +74,7 @@ class ToolEnv:
             return 0.0
         if not success:
             if not self.shaped:
-                return 0
+                return 0.0
             #shaped reward
             # demonstrateTPPlacement(self.tp, self.action_dict[tool_select], position)
             goal = wd["objects"]["Goal"]

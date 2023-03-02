@@ -5,10 +5,8 @@ import scipy.stats as stats
 
 
 root_directory = "experiments/initial_tests"
-seeds = [1]
+seeds = [1, 2, 3]
 runs = ["ablate_reward", "ablate_counterfactual", "ablate_prior", "full_algorithm"]
-
-files = [file for file in os.listdir(root_directory) if ".npy" in file]
 
 fig, ax = plt.subplots()
 
@@ -35,16 +33,10 @@ for run in runs:
     plt.fill_between(x_axis, means - errs, means + errs, alpha=0.25)
     plt.plot(x_axis, means, label=run)
 
-# for file in files:
-#     data = np.load(root_directory + "/" + file)
-#     line = ax.plot(data)
-#     line_list.append(line)
-#     # plot_dict[file.split(".")[0]] = plots
-
+ax.set_ylabel("Success Rate")
+ax.set_xlabel("Epochs")
+ax.set_title("Level 0 Performance (3 seeds)")
 plt.legend()
 
-# plt.legend(line, [file.split(".")[0]])
-
+fig.savefig("training.png")
 plt.show()
-
-print(files)
