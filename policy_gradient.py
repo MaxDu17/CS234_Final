@@ -6,14 +6,14 @@ from network_utils import np2torch
 from base_gaussian_policy import GaussianToolPolicy
 from environment.simulator import ToolEnv
 import matplotlib.pyplot as plt
-
+import argparse
 
 class PolicyGradient(object):
     """
     Class for implementing a policy gradient algorithm
     """
 
-    def __init__(self, env, seed, logger=None):
+    def __init__(self, env, seed, exp_dir, name, batch_size, object_prior):
         """
         Initialize Policy Gradient Class
 
@@ -34,13 +34,14 @@ class PolicyGradient(object):
 
         self.env = env
         # self.env.seed(self.seed)
-        self.batch_size = 10
+        self.batch_size = batch_size
         # self.lr = 3e-2
         self.lr = 0.5
-
+        self.exp_dir = exp_dir
+        self.name = name
 
     def init_policy(self):
-        self.policy = GaussianToolPolicy(ntools = 3, nsteps = 100) #arbitrary steps for now; should converge very quickly
+        self.policy = GaussianToolPolicy(ntools = 3, nsteps = args.epochs, object_prior = args.object_prior) #arbitrary steps for now; should converge very quickly
         # import ipdb
         # ipdb.set_trace()
         self.policy.to("cuda" if torch.cuda.is_available() else "cpu")
@@ -102,11 +103,22 @@ class PolicyGradient(object):
         paths = []
         t = 0
         while t < self.batch_size:
-            env.reset()
             action = self.policy.act()
-            #COUNTERFACTUAL SAMPLING
-            for i in range(3):
-                action[0] = i
+            if args.counterfactual:
+                #COUNTERFACTUAL SAMPLING
+                for i in range(3):
+                    env.reset()
+                    action[0] = i
+                    reward = env.step(action)
+
+                    episode_rewards.append(reward)
+
+                    paths.append({
+                        "reward": reward,
+                        "action": action.copy(),
+                    })
+            else:
+                env.reset()
                 reward = env.step(action)
 
                 episode_rewards.append(reward)
@@ -176,8 +188,8 @@ class PolicyGradient(object):
             []
         )  # the returns of all episodes samples for training purposes
         averaged_total_rewards = []  # the returns for each iteration
-        rewards_eval = list()
-        for t in range(100):
+        success_eval = list()
+        for t in range(args.epochs):
             # collect a minibatch of samples
             paths, total_rewards = self.sample_path(self.env)
             all_total_rewards.extend(total_rewards)
@@ -204,26 +216,36 @@ class PolicyGradient(object):
             print(msg)
 
             # RENDERING FOR US
-            if t % 5 == 0:
-                evals = self.evaluate()
-                print("LOW NOISE EVAL: ", evals)
-                rewards_eval.append(evals)
+            if t % args.eval_frq == 0:
+                rwds, succ= self.evaluate()
+                print("LOW NOISE EVAL: ", rwds, succ)
+                success_eval.append(succ)
 
             # self.env.render(t)
         fig, ax = plt.subplots()
-        print(rewards_eval)
-        ax.plot(rewards_eval)
-        fig.savefig("test.png")
+        print(success_eval)
+        x_axis = np.arange(0, args.epochs, args.eval_frq)
+        ax.plot(x_axis, success_eval)
+        ax.set_ylabel("Success Rate")
+        ax.set_xlabel("Epochs")
+        ax.set_title("Performance on Basic Environment")
+
+        fig.savefig(self.exp_dir + f"/{self.name}_{self.seed}.png")
+        np.save(self.exp_dir + f"/{self.name}_{self.seed}", success_eval)
         plt.show()
 
     def evaluate(self, env=None, num_episodes=1):
+        #TODO: generate meaningful animations
         avg_reward = 0
-        for i in range(20):
+        avg_success = 0
+        for i in range(args.eval_trials):
             self.env.reset()
             action = self.policy.act(low_noise = True)
-            avg_reward += self.env.step(action, display = False)# (i % 5 == 0))
+            rwd = self.env.step(action, display = False)# (i % 5 == 0))
+            avg_reward += rwd
+            avg_success += 1 if rwd > 0.99 else 0
 
-        return avg_reward / 20
+        return avg_reward / args.eval_trials, avg_success / args.eval_trials
 
     def run(self):
         """
@@ -236,6 +258,94 @@ class PolicyGradient(object):
         self.train()
         # record one game at the end
 
-env = ToolEnv()
-pg = PolicyGradient(env, seed = 1)
-pg.run()
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument(
+        "--seed",
+        type=int,
+        required = False,
+        default=1,
+        help="seed",
+    )
+
+    parser.add_argument(
+        "--counterfactual",
+        action='store_true',
+        help="counterfactual",
+    )
+
+    parser.add_argument(
+        "--shaped_reward",
+        action='store_true',
+        help="shaped reward",
+    )
+
+    parser.add_argument(
+        "--object_prior",
+        action='store_true',
+        help="object prior",
+    )
+
+    parser.add_argument(
+        "--epochs",
+        type=int,
+        required=False,
+        default=100,
+        help="training_length",
+    )
+
+    parser.add_argument(
+        "--batch_size",
+        type=int,
+        required=False,
+        default=10,
+        help="batch size ",
+    )
+
+    parser.add_argument(
+        "--eval_frq",
+        type=int,
+        required=False,
+        default=5,
+        help="batch size",
+    )
+
+    parser.add_argument(
+        "--eval_trials",
+        type=int,
+        required=False,
+        default=20,
+        help="number of times to run during eval",
+    )
+
+    parser.add_argument(
+        "--level",
+        type=int,
+        required=False,
+        default=0,
+        help="level of the game you play",
+    )
+
+    parser.add_argument(
+        "--name",
+        type=str,
+        required=False,
+        default="full_algorithm",
+        help="name of algorithm run",
+    )
+
+    parser.add_argument(
+        "--exp_dir",
+        type=str,
+        required=False,
+        default="experiments/initial_tests",
+        help="name of algorithm run",
+    )
+
+    args = parser.parse_args()
+    env = ToolEnv(environment = args.level, shaped = args.shaped_reward)
+    pg = PolicyGradient(env, seed = args.seed, exp_dir = args.exp_dir,
+                        name = args.name, batch_size = args.batch_size,
+                        object_prior = args.object_prior)
+    pg.run()

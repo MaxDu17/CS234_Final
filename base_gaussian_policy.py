@@ -7,7 +7,7 @@ import numpy as np
 
 
 class GaussianToolPolicy(nn.Module):
-    def __init__(self, ntools, nsteps):
+    def __init__(self, ntools, nsteps, object_prior):
         nn.Module.__init__(self)
         self.ntools = ntools
         # assuming that bounds is a single number, and the environment is a square
@@ -21,7 +21,13 @@ class GaussianToolPolicy(nn.Module):
 
         self.means = nn.Parameter(torch.zeros(self.ntools, 2)) # start in the middle
 
-        self.eps_begin = 0.1
+        ## TO CHANGE ##
+        if object_prior:
+            self.eps_begin = 0.1
+        else:
+            self.eps_begin = 1
+        ##########
+
         self.eps_end = 1
         self.epsilon = self.eps_begin
         self.nsteps = nsteps
@@ -52,7 +58,6 @@ class GaussianToolPolicy(nn.Module):
         sampled_dist_log_std = self.log_std[sampled_tool]
 
         if np.random.rand() < self.epsilon:
-            print("policy!")
             place_dist = ptd.MultivariateNormal(sampled_dist_mean, torch.diag(torch.exp(sampled_dist_log_std)))
         else:
             place_dist = ptd.MultivariateNormal(self.prior, torch.diag(torch.exp(self.prior_stdev))) #INCORRECT

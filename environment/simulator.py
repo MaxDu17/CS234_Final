@@ -10,7 +10,7 @@ import numpy as np
 import math
 
 class ToolEnv:
-    def __init__(self, environment = 0, json_dir = "environment/Trials/Original/"):
+    def __init__(self, environment = 0, json_dir = "environment/Trials/Original/", shaped = True):
         self.json_dir = json_dir
         self.tp = None
         self.worlds = os.listdir(self.json_dir)
@@ -24,6 +24,7 @@ class ToolEnv:
         self.action_dict = {0 : "obj1",
                             1 : "obj2",
                             2 : "obj3"}
+        self.shaped = shaped
 
 
     def reset(self):
@@ -72,6 +73,8 @@ class ToolEnv:
         if success is None:
             return 0.0
         if not success:
+            if not self.shaped:
+                return 0
             #shaped reward
             # demonstrateTPPlacement(self.tp, self.action_dict[tool_select], position)
             goal = wd["objects"]["Goal"]
