@@ -7,6 +7,8 @@ from base_gaussian_policy import GaussianToolPolicy
 from environment.simulator import ToolEnv
 import matplotlib.pyplot as plt
 import argparse
+import imageio
+import tqdm
 
 class PolicyGradient(object):
     """
@@ -217,7 +219,7 @@ class PolicyGradient(object):
 
             # RENDERING FOR US
             if t % args.eval_frq == 0:
-                rwds, succ= self.evaluate()
+                rwds, succ= self.evaluate(t)
                 print("LOW NOISE EVAL: ", rwds, succ)
                 success_eval.append(succ)
 
@@ -234,16 +236,27 @@ class PolicyGradient(object):
         np.save(self.exp_dir + f"/{self.name}_{self.seed}", success_eval)
         plt.show()
 
-    def evaluate(self, env=None, num_episodes=1):
+    def evaluate(self, step):
         #TODO: generate meaningful animations
         avg_reward = 0
         avg_success = 0
-        for i in range(args.eval_trials):
+        writer = imageio.get_writer(self.exp_dir + f"/{self.name}_{self.seed}_{step}.mp4", fps=20)
+
+        for i in tqdm.tqdm(range(args.eval_trials)):
             self.env.reset()
             action = self.policy.act(low_noise = True)
             rwd = self.env.step(action, display = False)# (i % 5 == 0))
             avg_reward += rwd
             avg_success += 1 if rwd > 0.99 else 0
+
+            img_stack = self.env.render()
+            for f in range(img_stack.shape[0]):
+                writer.append_data(img_stack[f])
+
+        writer.close()
+        import ipdb
+        ipdb.set_trace()
+
 
         return avg_reward / args.eval_trials, avg_success / args.eval_trials
 

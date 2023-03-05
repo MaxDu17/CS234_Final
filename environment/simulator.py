@@ -29,8 +29,8 @@ class ToolEnv:
 
     def reset(self):
         self.tp._reset_pyworld()
+        self.last_path = None
         self.state = None
-        self.wd = None
 
 
     def clip(self, arr):
@@ -85,22 +85,18 @@ class ToolEnv:
         else:
             reward = 1.0
 
-        # print(reward)
-        # print(tool_select, position, success)
 
-        # TODO: get proper reward (by looking at where the ball is relative to the goal
-        self.state = path_dict
-        self.wd = wd
+        self.last_path = path_dict
+        self.state = wd
         #path_dict["Ball"] contains trajectory of the ball through time
         if display:
             demonstrateTPPlacement(self.tp, self.action_dict[tool_select], position)
         #perchance derive from path_dict the rewaard
         return reward
 
-    def render(self, step):
-        sc = drawPathSingleImageWithTools(self.tp, self.state, pathSize=3, lighten_amt=.5, worlddict = self.wd, with_tools=True)
-        pg.image.save(sc, f"results/{step}.png")
-        #TODO replace with actual byte array
+    def render(self):
+        img_arr = self.tp._get_image_array(self.state, self.last_path, sample_ratio=10)
+        return img_arr
 
 
 # env = ToolEnv(json_dir = "./Trials/Original/")
