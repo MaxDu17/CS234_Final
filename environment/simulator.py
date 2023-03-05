@@ -25,7 +25,37 @@ class ToolEnv:
                             1 : "obj2",
                             2 : "obj3"}
         self.shaped = shaped
+        meaningful_objects = {k : v for k, v in btr["world"]["objects"].items() if v["density"] != 0}
+        self.object_prior_dict = {}
+        for key, value in meaningful_objects.items():
+            if value["type"] == "Ball":
+                x_lims = [value["position"][0] - value["radius"], value["position"][0] + value["radius"]]
+                y_mean = value["position"][1]
+            elif value["type"] == "Poly":
+                x_lims = self.find_x_lims(value["vertices"])
+                y_mean = self.find_y_mean(value["vertices"])
+            elif value["type"] == "Compound":
+                pt_list = list()
+                for poly in value["polys"]:
+                    pt_list.extend(poly)
+                x_lims = self.find_x_lims(pt_list)
+                y_mean = self.find_y_mean(pt_list)
+            else:
+                raise Exception("unregisetered object!")
+            # recentering around [-1, 1]
+            x_lims[0] = (x_lims[0] - (self.dims[0] / 2)) / (self.dims[0] / 2)
+            x_lims[1] = (x_lims[1] - (self.dims[0] / 2)) / (self.dims[0] / 2)
+            y_mean = (y_mean - (self.dims[1] / 2)) / (self.dims[1] / 2)
+            self.object_prior_dict[key] = (x_lims, y_mean)
 
+
+    def find_x_lims(self, pt_list):
+        x_min = min([v[0] for v in pt_list])
+        x_max = max([v[0] for v in pt_list])
+        return [x_min, x_max]
+
+    def find_y_mean(self, pt_list):
+        return sum([v[1] for v in pt_list]) / len(pt_list)
 
     def reset(self):
         self.tp._reset_pyworld()
@@ -70,6 +100,7 @@ class ToolEnv:
         # path_dict, success, time_to_success = self.tp.observePlacementPath(toolname="obj1", position=(90, 400), maxtime=20.)
         # path_dict, success, time_to_success = self.tp.observePlacementPath(toolname=self.action_dict[action[0]], position=action[1], maxtime=20.)
         path_dict, success, time_to_success, wd = self.tp.observeFullPlacementPath(toolname=self.action_dict[tool_select], position=position, maxtime=20., returnDict=True)
+
         if success is None:
             return 0.0
         if not success:
@@ -90,7 +121,9 @@ class ToolEnv:
         self.state = wd
         #path_dict["Ball"] contains trajectory of the ball through time
         if display:
+            print('demoed')
             demonstrateTPPlacement(self.tp, self.action_dict[tool_select], position)
+
         #perchance derive from path_dict the rewaard
         return reward
 
@@ -99,8 +132,14 @@ class ToolEnv:
         return img_arr
 
 
-# env = ToolEnv(json_dir = "./Trials/Original/")
+# env = ToolEnv(json_dir = "./Trials/Original/", environment = 2)
 # env.reset()
-# action = np.array([0, 90, 400])
+# # action = np.array([0, 90, 400])
+# action = np.array([0, 300, 500])
+# while True:
+#     print("yes")
+#     env.step(action, display= True)
+#     input("enter")
+
 # print(env.step(action))
 # env.render()

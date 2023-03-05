@@ -7,7 +7,7 @@ import numpy as np
 
 
 class GaussianToolPolicy(nn.Module):
-    def __init__(self, ntools, nsteps, object_prior):
+    def __init__(self, ntools, nsteps, object_prior, device):
         nn.Module.__init__(self)
         self.ntools = ntools
         # assuming that bounds is a single number, and the environment is a square
@@ -16,16 +16,23 @@ class GaussianToolPolicy(nn.Module):
         self.log_std = nn.Parameter(-1.79 * torch.ones(self.ntools, 2)) #start wide
         # self.log_std = nn.Parameter(-3 * torch.ones(self.ntools, 2)) #start wide
 
-        self.prior = nn.Parameter(torch.tensor([-0.66, 0.33]) , requires_grad = False) # [100, 215] is the real ball
-        self.prior_stdev = nn.Parameter(torch.tensor([-3.0, -2.0]), requires_grad = False)
+        # self.prior = nn.Parameter(torch.tensor([-0.66, 0.33]) , requires_grad = False) # [100, 215] is the real ball
+        # self.prior_stdev = nn.Parameter(torch.tensor([-3.0, -2.0]), requires_grad = False)
 
         self.means = nn.Parameter(torch.zeros(self.ntools, 2)) # start in the middle
 
         ## TO CHANGE ##
-        if object_prior:
+        self.object_prior = object_prior
+        self.object_names = list(self.object_prior.keys())
+        self.device = device
+
+        if object_prior is not None:
             self.eps_begin = 0.1
+            self.sigma_x = 0.1 #how far to sample beyond x limits
+            self.sigma_y = 0.3 #how far to sample beyond the y mean
         else:
             self.eps_begin = 1
+
         ##########
 
         self.eps_end = 1
@@ -59,9 +66,21 @@ class GaussianToolPolicy(nn.Module):
 
         if np.random.rand() < self.epsilon:
             place_dist = ptd.MultivariateNormal(sampled_dist_mean, torch.diag(torch.exp(sampled_dist_log_std)))
+            sampled_placement = place_dist.sample()
+
         else:
-            place_dist = ptd.MultivariateNormal(self.prior, torch.diag(torch.exp(self.prior_stdev))) #INCORRECT
-        sampled_placement = place_dist.sample()
+            selected_object_name = self.object_names[np.random.randint(0, len(self.object_prior))]
+            selected_object = self.object_prior[selected_object_name] #pick the object to interact with
+            # print(selected_object_name)
+
+            x_value = np.random.rand() * (2 * self.sigma_x + selected_object[0][1] - selected_object[0][0]) + (selected_object[0][0] - self.sigma_x)
+            if x_value < selected_object[0][0]:
+                x_value = np.random.normal(selected_object[0][0], self.sigma_x)
+            elif x_value > selected_object[0][1]:
+                x_value = np.random.normal(selected_object[0][1], self.sigma_x)
+            y_value = np.random.normal(selected_object[1], self.sigma_y)
+            sampled_placement = torch.tensor([x_value, y_value], device = self.device)
+            # place_dist = ptd.MultivariateNormal(self.prior, torch.diag(torch.exp(self.prior_stdev))) #INCORRECT
         action = np.zeros((3))
         action[0] = sampled_tool.item()
         action[1 : ] = sampled_placement.cpu().numpy()

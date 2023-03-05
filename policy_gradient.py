@@ -43,10 +43,9 @@ class PolicyGradient(object):
         self.name = name
 
     def init_policy(self):
-        self.policy = GaussianToolPolicy(ntools = 3, nsteps = args.epochs, object_prior = args.object_prior) #arbitrary steps for now; should converge very quickly
-        # import ipdb
-        # ipdb.set_trace()
-        self.policy.to("cuda" if torch.cuda.is_available() else "cpu")
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.policy = GaussianToolPolicy(ntools = 3, nsteps = args.epochs, object_prior = self.env.object_prior_dict, device = device) #arbitrary steps for now; should converge very quickly
+        self.policy.to(device)
         # self.optimizer = torch.optim.Adam(self.policy.parameters(), lr=self.lr)
         self.optimizer = torch.optim.SGD(self.policy.parameters(), lr=self.lr)
         # self.optimizer = torch.optim.SGD(self.policy.parameters(), lr=self.lr)
@@ -254,9 +253,6 @@ class PolicyGradient(object):
                 writer.append_data(img_stack[f])
 
         writer.close()
-        import ipdb
-        ipdb.set_trace()
-
 
         return avg_reward / args.eval_trials, avg_success / args.eval_trials
 
