@@ -48,6 +48,20 @@ class ToolEnv:
             y_mean = (y_mean - (self.dims[1] / 2)) / (self.dims[1] / 2)
             self.object_prior_dict[key] = (x_lims, y_mean)
 
+    def visualize_prior(self, sigma_x, sigma_y):
+        img = np.array(self.tp.drawPathSingleImage())
+        target_color = np.array([255, 0, 0])
+        for object, (xlims, y_mean) in self.object_prior_dict.items():
+            x_left = int(((xlims[0] - sigma_x) * (self.dims[0] / 2)) + (self.dims[0] / 2))
+            x_right = int(((xlims[1] + sigma_x) * (self.dims[0] / 2)) + (self.dims[0] / 2))
+            y_left = int(((y_mean - sigma_y) * (self.dims[1] / 2)) + (self.dims[1] / 2))
+            y_right = int(((y_mean + sigma_y) * (self.dims[1] / 2)) + (self.dims[1] / 2))
+            y_left = max(0, y_left)
+            y_right = min(600, y_right)
+            img[600 - y_right : 600 - y_left, x_left : x_right] = 0.5 * img[600 - y_right : 600 - y_left, x_left : x_right] + 0.5 * target_color
+        import matplotlib.pyplot as plt
+        plt.imshow(img)
+        plt.show()
 
     def find_x_lims(self, pt_list):
         x_min = min([v[0] for v in pt_list])
@@ -93,15 +107,19 @@ class ToolEnv:
     def step(self, action: np.array, display = False) -> float:
         tool_select = action[0]
         position = (action[1 : ] + 1) * (self.dims[0] / 2) #shift and scale from (-1, 1) to (0, 600)
+        position = np.clip(position, 0, self.dims[0])
         position = position.tolist()
+
         assert tool_select <= 2 and tool_select >= 0
         position = self.clip(position)
 
         # path_dict, success, time_to_success = self.tp.observePlacementPath(toolname="obj1", position=(90, 400), maxtime=20.)
         # path_dict, success, time_to_success = self.tp.observePlacementPath(toolname=self.action_dict[action[0]], position=action[1], maxtime=20.)
         path_dict, success, time_to_success, wd = self.tp.observeFullPlacementPath(toolname=self.action_dict[tool_select], position=position, maxtime=20., returnDict=True)
-
         if success is None:
+            self.last_path = None
+            self.state = None
+            print("\t\t FAIL")
             return 0.0
         if not success:
             if not self.shaped:
@@ -116,9 +134,9 @@ class ToolEnv:
         else:
             reward = 1.0
 
-
         self.last_path = path_dict
         self.state = wd
+        assert self.last_path is not None and self.state is not None, "somehow you queried an invalid position"
         #path_dict["Ball"] contains trajectory of the ball through time
         if display:
             print('demoed')
@@ -128,12 +146,15 @@ class ToolEnv:
         return reward
 
     def render(self):
-        img_arr = self.tp._get_image_array(self.state, self.last_path, sample_ratio=10)
-        return img_arr
+        if self.state is not None and self.last_path is not None:
+            img_arr = self.tp._get_image_array(self.state, self.last_path, sample_ratio=5)
+            return img_arr
+        return None
 
-
-# env = ToolEnv(json_dir = "./Trials/Original/", environment = 2)
+#
+# env = ToolEnv(json_dir = "./Trials/Original/", environment = 1)
 # env.reset()
+# env.visualize_prior(sigma_x = 0.1, sigma_y = 0.7)
 # # action = np.array([0, 90, 400])
 # action = np.array([0, 300, 500])
 # while True:

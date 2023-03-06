@@ -231,15 +231,15 @@ class PolicyGradient(object):
         ax.set_xlabel("Epochs")
         ax.set_title("Performance on Basic Environment")
 
-        fig.savefig(self.exp_dir + f"/{self.name}_{self.seed}.png")
-        np.save(self.exp_dir + f"/{self.name}_{self.seed}", success_eval)
+        fig.savefig(self.exp_dir + f"/{self.name}_level{args.level}_{self.seed}.png")
+        np.save(self.exp_dir + f"/{self.name}_level{args.level}_{self.seed}", success_eval)
         plt.show()
 
     def evaluate(self, step):
         #TODO: generate meaningful animations
         avg_reward = 0
         avg_success = 0
-        writer = imageio.get_writer(self.exp_dir + f"/{self.name}_{self.seed}_{step}.mp4", fps=20)
+        writer = imageio.get_writer(self.exp_dir + f"/{self.name}_level{args.level}_{self.seed}_{step}.mp4", fps=20)
 
         for i in tqdm.tqdm(range(args.eval_trials)):
             self.env.reset()
@@ -249,8 +249,9 @@ class PolicyGradient(object):
             avg_success += 1 if rwd > 0.99 else 0
 
             img_stack = self.env.render()
-            for f in range(img_stack.shape[0]):
-                writer.append_data(img_stack[f])
+            if img_stack is not None:
+                for f in range(img_stack.shape[0]):
+                    writer.append_data(img_stack[f])
 
         writer.close()
 
