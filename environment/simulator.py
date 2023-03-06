@@ -26,6 +26,10 @@ class ToolEnv:
                             2 : "obj3"}
         self.shaped = shaped
         meaningful_objects = {k : v for k, v in btr["world"]["objects"].items() if v["density"] != 0}
+        blocker_list = [self.find_x_lims(v["vertices"]) for v in btr["world"]["blocks"].values()]
+        # TODO: make meaningful blocker exclusions
+        import ipdb
+        # ipdb.set_trace()
         self.object_prior_dict = {}
         for key, value in meaningful_objects.items():
             if value["type"] == "Ball":
@@ -40,7 +44,11 @@ class ToolEnv:
                     pt_list.extend(poly)
                 x_lims = self.find_x_lims(pt_list)
                 y_mean = self.find_y_mean(pt_list)
+            elif value["type"] == "Container":
+                x_lims = self.find_x_lims(value["points"])
+                y_mean = self.find_y_mean(value["points"])
             else:
+                print(value["type"])
                 raise Exception("unregisetered object!")
             # recentering around [-1, 1]
             x_lims[0] = (x_lims[0] - (self.dims[0] / 2)) / (self.dims[0] / 2)
@@ -104,7 +112,7 @@ class ToolEnv:
         dist = math.sqrt(dist)
         return dist
 
-    def step(self, action: np.array, display = False) -> float:
+    def step(self, action: np.array, display = False):
         tool_select = action[0]
         position = (action[1 : ] + 1) * (self.dims[0] / 2) #shift and scale from (-1, 1) to (0, 600)
         position = np.clip(position, 0, self.dims[0])
@@ -117,10 +125,7 @@ class ToolEnv:
         # path_dict, success, time_to_success = self.tp.observePlacementPath(toolname=self.action_dict[action[0]], position=action[1], maxtime=20.)
         path_dict, success, time_to_success, wd = self.tp.observeFullPlacementPath(toolname=self.action_dict[tool_select], position=position, maxtime=20., returnDict=True)
         if success is None:
-            self.last_path = None
-            self.state = None
-            print("\t\t FAIL")
-            return 0.0
+            return None
         if not success:
             if not self.shaped:
                 return 0.0
@@ -152,7 +157,9 @@ class ToolEnv:
         return None
 
 #
-# env = ToolEnv(json_dir = "./Trials/Original/", environment = 1)
+
+#TODO: object priors must be removed from forbidden regions
+# env = ToolEnv(json_dir = "./Trials/Original/", environment = 6) #5 has blocker, and 3
 # env.reset()
 # env.visualize_prior(sigma_x = 0.1, sigma_y = 0.7)
 # # action = np.array([0, 90, 400])

@@ -102,8 +102,8 @@ class PolicyGradient(object):
         """
         episode_rewards = []
         paths = []
-        t = 0
-        while t < self.batch_size:
+        print("COLLECTING BATCH")
+        for t in tqdm.tqdm(range(self.batch_size)):
             action = self.policy.act()
             if args.counterfactual:
                 #COUNTERFACTUAL SAMPLING
@@ -111,6 +111,11 @@ class PolicyGradient(object):
                     env.reset()
                     action[0] = i
                     reward = env.step(action)
+                    while reward is None: #this is done for illegal moves
+                        # print("retrying!")
+                        action = self.policy.act()
+                        action[0] = i
+                        reward = env.step(action)
 
                     episode_rewards.append(reward)
 
@@ -128,8 +133,6 @@ class PolicyGradient(object):
                     "reward": reward,
                     "action": action.copy(),
                 })
-
-            t += 1
 
         return paths, episode_rewards
 
@@ -170,10 +173,6 @@ class PolicyGradient(object):
         self.optimizer.step()
         # print(loss)
         self.policy.print_repr()
-
-
-        #######################################################
-        #########          END YOUR CODE.          ############
 
     def train(self):
         """
@@ -236,15 +235,16 @@ class PolicyGradient(object):
         plt.show()
 
     def evaluate(self, step):
-        #TODO: generate meaningful animations
         avg_reward = 0
         avg_success = 0
         writer = imageio.get_writer(self.exp_dir + f"/{self.name}_level{args.level}_{self.seed}_{step}.mp4", fps=20)
 
         for i in tqdm.tqdm(range(args.eval_trials)):
             self.env.reset()
-            action = self.policy.act(low_noise = True)
-            rwd = self.env.step(action, display = False)# (i % 5 == 0))
+            rwd = None
+            while rwd is None:
+                action = self.policy.act(low_noise = True)
+                rwd = self.env.step(action, display = False)# (i % 5 == 0))
             avg_reward += rwd
             avg_success += 1 if rwd > 0.99 else 0
 
