@@ -38,7 +38,7 @@ class PolicyGradient(object):
         # self.env.seed(self.seed)
         self.batch_size = batch_size
         # self.lr = 3e-2
-        self.lr = 0.5
+        self.lr = 0.1 #1.5 #0.5
         self.exp_dir = exp_dir
         self.name = name
 
@@ -111,11 +111,16 @@ class PolicyGradient(object):
                     env.reset()
                     action[0] = i
                     reward = env.step(action)
-                    while reward is None: #this is done for illegal moves
+                    count = 0
+                    while reward is None and count < 10: #this is done for illegal moves
                         # print("retrying!")
                         action = self.policy.act()
                         action[0] = i
                         reward = env.step(action)
+                        count += 1
+                        if count == 10: #on th 10th try, reward automatically is 0
+                            print('gave up!')
+                            reward = 0.0
 
                     episode_rewards.append(reward)
 
@@ -239,12 +244,21 @@ class PolicyGradient(object):
         avg_success = 0
         writer = imageio.get_writer(self.exp_dir + f"/{self.name}_level{args.level}_{self.seed}_{step}.mp4", fps=20)
 
+        std = np.exp(self.policy.log_std.detach().cpu().numpy())
+        means = self.policy.means.detach().cpu().numpy()
+        self.env.visualize_distributions(means, std, self.exp_dir + f"/{self.name}_level{args.level}_{self.seed}_{step}.png")
+
         for i in tqdm.tqdm(range(args.eval_trials)):
             self.env.reset()
             rwd = None
-            while rwd is None:
+            count = 0
+            while rwd is None and count < 10:
                 action = self.policy.act(low_noise = True)
                 rwd = self.env.step(action, display = False)# (i % 5 == 0))
+                count += 1
+                if count == 10:
+                    print("gave up!")
+                    rwd = 0.0
             avg_reward += rwd
             avg_success += 1 if rwd > 0.99 else 0
 

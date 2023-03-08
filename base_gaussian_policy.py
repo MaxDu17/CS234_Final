@@ -27,7 +27,7 @@ class GaussianToolPolicy(nn.Module):
         self.device = device
 
         if object_prior is not None:
-            self.eps_begin = 0.3
+            self.eps_begin = 0.7
             self.sigma_x = 0.1 #how far to sample beyond x limits
             self.sigma_y = 0.7 #how far to sample beyond the y mean
         else:
@@ -35,7 +35,7 @@ class GaussianToolPolicy(nn.Module):
 
         ##########
 
-        self.eps_end = 0.3 #TODO: temporary disabling annealing
+        self.eps_end = 0.7 #TODO: temporary disabling annealing
         self.epsilon = self.eps_begin
         self.nsteps = nsteps
 
@@ -54,7 +54,7 @@ class GaussianToolPolicy(nn.Module):
             # tool = tool_dist.sample()
             # tool = 0
             tool = torch.argmax(self.tool_distribution)
-            place_dist = ptd.MultivariateNormal(self.means[tool], torch.diag(torch.exp(self.log_std[tool] - 5)))
+            place_dist = ptd.MultivariateNormal(self.means[tool], torch.diag(torch.exp(self.log_std[tool] - 9)))
             place_sample = place_dist.sample()
             action = np.zeros((3))
             action[0] = tool.item()
@@ -88,6 +88,7 @@ class GaussianToolPolicy(nn.Module):
         sampled_dist_log_std = self.log_std[sampled_tool]
 
         if np.random.rand() < self.epsilon:
+            print("REAL")
             place_dist = ptd.MultivariateNormal(sampled_dist_mean, torch.diag(torch.exp(sampled_dist_log_std)))
             sampled_placement = place_dist.sample()
 
@@ -101,7 +102,12 @@ class GaussianToolPolicy(nn.Module):
                 x_value = np.random.normal(selected_object[0][0], self.sigma_x)
             elif x_value > selected_object[0][1]:
                 x_value = np.random.normal(selected_object[0][1], self.sigma_x)
-            y_value = np.random.normal(selected_object[1], self.sigma_y)
+
+            y_samp = np.random.normal(0, self.sigma_y)
+            if y_samp < 0: #select what's above or below the object
+                y_value = selected_object[1][0] + y_samp
+            else:
+                y_value = selected_object[1][1] + y_samp
             sampled_placement = torch.tensor([x_value, y_value], device = self.device)
             # place_dist = ptd.MultivariateNormal(self.prior, torch.diag(torch.exp(self.prior_stdev))) #INCORRECT
         action = np.zeros((3))
