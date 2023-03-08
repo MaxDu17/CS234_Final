@@ -79,7 +79,7 @@ class PolicyGradient(object):
         pass
 
 
-    def sample_path(self, env, num_episodes=None):
+    def sample_path(self, env, num_episodes=None, prior = False):
         """
         Sample paths (trajectories) from the environment.
 
@@ -102,9 +102,13 @@ class PolicyGradient(object):
         """
         episode_rewards = []
         paths = []
-        print("COLLECTING BATCH")
-        for t in tqdm.tqdm(range(self.batch_size)):
-            action = self.policy.act()
+        # print("COLLECTING BATCH")
+        niters = self.batch_size if num_episodes is None else num_episodes
+        for t in tqdm.tqdm(range(niters)):
+            if prior:
+                action = self.policy.act(prior_only=True)
+            else:
+                action = self.policy.act()
             if args.counterfactual:
                 #COUNTERFACTUAL SAMPLING
                 for i in range(3):
@@ -114,7 +118,10 @@ class PolicyGradient(object):
                     count = 0
                     while reward is None and count < 10: #this is done for illegal moves
                         # print("retrying!")
-                        action = self.policy.act()
+                        if prior:
+                            action = self.policy.act(prior_only = True)
+                        else:
+                            action = self.policy.act()
                         action[0] = i
                         reward = env.step(action)
                         count += 1
@@ -177,7 +184,7 @@ class PolicyGradient(object):
         # print(self.policy.means.grad) #should be all populated
         self.optimizer.step()
         # print(loss)
-        self.policy.print_repr()
+        # self.policy.print_repr()
 
     def train(self):
         """
@@ -194,6 +201,17 @@ class PolicyGradient(object):
         )  # the returns of all episodes samples for training purposes
         averaged_total_rewards = []  # the returns for each iteration
         success_eval = list()
+
+        paths, total_rewards = self.sample_path(self.env, num_episodes=10, prior = True)
+        print('BURN-IN')
+        for t in range(30):
+            actions = np.stack([path["action"] for path in paths])
+            rewards = np.stack([path["reward"] for path in paths])
+            returns = rewards  # only true because it's one-step return
+            self.update_policy(actions, returns)
+            self.policy.anneal_epsilon(t)
+
+
         for t in range(args.epochs):
             # collect a minibatch of samples
             paths, total_rewards = self.sample_path(self.env)

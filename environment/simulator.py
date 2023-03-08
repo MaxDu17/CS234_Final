@@ -111,7 +111,7 @@ class ToolEnv:
             denormed_x = self.denorm(means[i][0], self.dims[0])
             denormed_y = self.denorm(means[i][1], self.dims[1])
             # ellipse = matplotlib.patches.Ellipse((means[i][0], means[i][1]), stdevs[i][0], stdevs[i][1], angle=0, alpha = 0.3)
-            ellipse = matplotlib.patches.Ellipse((denormed_x, denormed_y),
+            ellipse = matplotlib.patches.Ellipse((denormed_x, 600 - denormed_y),
                                                  stdevs[i][0] * self.dims[0],stdevs[i][1] * self.dims[1], angle=0, alpha = 0.3, color = colors[i])
             ax.add_patch(ellipse)
         plt.savefig(save_dir)
@@ -183,8 +183,17 @@ class ToolEnv:
                 return 0.0
             #shaped reward
             # demonstrateTPPlacement(self.tp, self.action_dict[tool_select], position)
-            goal = wd["objects"]["Goal"]
-            middle_of_goal = self.middle_of(goal["points"])
+            if "Goal" in wd["objects"]:
+                goal = wd["objects"]["Goal"]
+            else:
+                goal_list = [v for k, v in wd["objects"].items() if v["type"] == "Goal"]
+                assert len(goal_list) == 1
+                goal = goal_list[0]
+            try:
+                middle_of_goal = self.middle_of(goal["points"])
+            except KeyError:
+                middle_of_goal = self.middle_of(goal["vertices"]) #janky, but this works
+
             baseline_distance = self.dist(path_dict["Ball"][0][0], middle_of_goal)
             min_distance = min([self.dist(pt, middle_of_goal) for pt in path_dict["Ball"][0]])
             reward = 1 - min_distance / baseline_distance
@@ -212,7 +221,7 @@ class ToolEnv:
 
 #TODO: object priors must be removed from forbidden regions
 
-# env = ToolEnv(json_dir = "./Trials/Original/", environment = 1) #5 has blocker, and 3
+# env = ToolEnv(json_dir = "./Trials/Original/", environment = 4) #5 has blocker, and 3
 # env.reset()
 # env.visualize_prior(sigma_x = 0.1, sigma_y = 0.7)
 # # action = np.array([0, 90, 400])

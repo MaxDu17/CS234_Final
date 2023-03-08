@@ -48,13 +48,13 @@ class GaussianToolPolicy(nn.Module):
         self.epsilon = self.eps_begin + (min(t, self.nsteps) / self.nsteps) * (self.eps_end - self.eps_begin)
         print("annealed!", self.epsilon)
 
-    def act(self, obs = None, low_noise = False): #does not take an observation
+    def act(self, obs = None, low_noise = False, prior_only = False): #does not take an observation
         if low_noise:
             # tool_dist = ptd.categorical.Categorical(logits=self.tool_distribution * 8)
             # tool = tool_dist.sample()
             # tool = 0
             tool = torch.argmax(self.tool_distribution)
-            place_dist = ptd.MultivariateNormal(self.means[tool], torch.diag(torch.exp(self.log_std[tool] - 9)))
+            place_dist = ptd.MultivariateNormal(self.means[tool], torch.diag(torch.exp(self.log_std[tool] - 5)))
             place_sample = place_dist.sample()
             action = np.zeros((3))
             action[0] = tool.item()
@@ -87,7 +87,7 @@ class GaussianToolPolicy(nn.Module):
         sampled_dist_mean = self.means[sampled_tool]
         sampled_dist_log_std = self.log_std[sampled_tool]
 
-        if np.random.rand() < self.epsilon:
+        if np.random.rand() < self.epsilon and not prior_only:
             print("REAL")
             place_dist = ptd.MultivariateNormal(sampled_dist_mean, torch.diag(torch.exp(sampled_dist_log_std)))
             sampled_placement = place_dist.sample()
