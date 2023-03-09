@@ -22,17 +22,19 @@ class ToolEnv:
         # relevant env:
         with open(self.json_dir + self.worlds[environment], 'r') as f:
             btr = json.load(f)
+
         self.tp = ToolPicker(btr)
         self.dims = (600, 600)
         self.action_dict = {0 : "obj1",
                             1 : "obj2",
                             2 : "obj3"}
         self.shaped = shaped
+        self.tool_x_lim_dict = {k : max([abs(x) for x in self.find_x_lims(v[0])]) for k, v in btr["tools"].items()} #find the largest radius
+        self.tool_y_lim_dict = {k : max([abs(x) for x in self.find_y_lims(v[0])]) for k, v in btr["tools"].items()} #find the largest radius
+
         meaningful_objects = {k : v for k, v in btr["world"]["objects"].items() if v["density"] != 0}
-        blocker_list = [self.find_x_lims(v["vertices"]) for v in btr["world"]["blocks"].values()]
-        # TODO: make meaningful blocker exclusions
-        import ipdb
-        # ipdb.set_trace()
+        blocker_x_list = [self.find_x_lims(v["vertices"]) for v in btr["world"]["blocks"].values()]
+        blocker_y_list = [self.find_y_lims(v["vertices"]) for v in btr["world"]["blocks"].values()]
 
         self.img = np.array(self.tp.drawPathSingleImage(wd = None, path = None))
 
@@ -57,15 +59,21 @@ class ToolEnv:
                 print(value["type"])
                 raise Exception("unregisetered object!")
             # recentering around [-1, 1]
+            if self.inside_forbidden(x_lims, y_lims, blocker_x_list, blocker_y_list):
+                continue
             x_lims[0] = self.norm(x_lims[0], self.dims[0])
             x_lims[1] = self.norm(x_lims[1], self.dims[0])
             y_lims[0] = self.norm(y_lims[0], self.dims[0])
             y_lims[1] = self.norm(y_lims[1], self.dims[0])
-            # x_lims[0] = (x_lims[0] - (self.dims[0] / 2)) / (self.dims[0] / 2)
-            # x_lims[1] = (x_lims[1] - (self.dims[0] / 2)) / (self.dims[0] / 2)
-            # y_lims[0] = (y_lims[0] - (self.dims[0] / 2)) / (self.dims[0] / 2)
-            # y_lims[1] = (y_lims[1] - (self.dims[0] / 2)) / (self.dims[0] / 2)
+
             self.object_prior_dict[key] = (x_lims, y_lims)
+
+    def inside_forbidden(self, x_lims, y_lims, blocker_x_lims, blocker_y_lims):
+        for bx_lim, by_lim in zip(blocker_x_lims, blocker_y_lims):
+            if x_lims[0] > bx_lim[0] and x_lims[1] < bx_lim[1]:
+                if y_lims[0] > by_lim[0] and y_lims[1] < by_lim[1]:
+                    return True
+        return False
 
     def norm(self, x, orig_scale):
         return ((x - orig_scale / 2) / (orig_scale / 2)) #centered between 0 and 1
@@ -128,9 +136,6 @@ class ToolEnv:
         y_max = int(max([v[1] for v in pt_list]))
         return [y_min, y_max]
 
-    def find_y_mean(self, pt_list):
-        return sum([v[1] for v in pt_list]) / len(pt_list)
-
     def reset(self):
         self.tp._reset_pyworld()
         self.last_path = None
@@ -166,16 +171,19 @@ class ToolEnv:
 
     def step(self, action: np.array, display = False):
         tool_select = action[0]
+        tool_name = self.action_dict[tool_select]
         position = (action[1 : ] + 1) * (self.dims[0] / 2) #shift and scale from (-1, 1) to (0, 600)
-        position = np.clip(position, 0, self.dims[0])
+        # clips intelligently; does not allow tool to be illegally over the edge
+        position = np.clip(position, (self.tool_x_lim_dict[tool_name], self.tool_y_lim_dict[tool_name]),
+                           (self.dims[0] - self.tool_x_lim_dict[tool_name], self.dims[0] - self.tool_y_lim_dict[tool_name]))
         position = position.tolist()
 
         assert tool_select <= 2 and tool_select >= 0
-        position = self.clip(position)
+        # position = self.clip(position)
 
         # path_dict, success, time_to_success = self.tp.observePlacementPath(toolname="obj1", position=(90, 400), maxtime=20.)
         # path_dict, success, time_to_success = self.tp.observePlacementPath(toolname=self.action_dict[action[0]], position=action[1], maxtime=20.)
-        path_dict, success, time_to_success, wd = self.tp.observeFullPlacementPath(toolname=self.action_dict[tool_select], position=position, maxtime=20., returnDict=True)
+        path_dict, success, time_to_success, wd = self.tp.observeFullPlacementPath(toolname=tool_name, position=position, maxtime=20., returnDict=True)
         if success is None:
             return None
         if not success:
@@ -193,16 +201,19 @@ class ToolEnv:
                 middle_of_goal = self.middle_of(goal["points"])
             except KeyError:
                 middle_of_goal = self.middle_of(goal["vertices"]) #janky, but this works
+            balls = [v for k, v in path_dict.items() if "Ball" in k]
 
-            baseline_distance = self.dist(path_dict["Ball"][0][0], middle_of_goal)
-            min_distance = min([self.dist(pt, middle_of_goal) for pt in path_dict["Ball"][0]])
-            reward = 1 - min_distance / baseline_distance
+            baseline_distances = list()
+            min_distances = list()
+            for ball in balls:
+                baseline_distances.append(self.dist(ball[0][0], middle_of_goal))
+                min_distances.append(min([self.dist(pt, middle_of_goal) for pt in ball[0]]))
+            reward = 1 - min(min_distances) / min(baseline_distances)
         else:
             reward = 1.0
 
         self.last_path = path_dict
         self.state = wd
-        assert self.last_path is not None and self.state is not None, "somehow you queried an invalid position"
         #path_dict["Ball"] contains trajectory of the ball through time
         if display:
             print('demoed')
@@ -221,9 +232,11 @@ class ToolEnv:
 
 #TODO: object priors must be removed from forbidden regions
 
-# env = ToolEnv(json_dir = "./Trials/Original/", environment = 4) #5 has blocker, and 3
+# AVOID 12, 13
+# env = ToolEnv(json_dir = "./Trials/Original/", environment = 17) #5 has blocker, and 3
 # env.reset()
 # env.visualize_prior(sigma_x = 0.1, sigma_y = 0.7)
+
 # # action = np.array([0, 90, 400])
 # action = np.array([0, 300, 500])
 # while True:

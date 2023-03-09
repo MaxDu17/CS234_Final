@@ -50,9 +50,6 @@ class GaussianToolPolicy(nn.Module):
 
     def act(self, obs = None, low_noise = False, prior_only = False): #does not take an observation
         if low_noise:
-            # tool_dist = ptd.categorical.Categorical(logits=self.tool_distribution * 8)
-            # tool = tool_dist.sample()
-            # tool = 0
             tool = torch.argmax(self.tool_distribution)
             place_dist = ptd.MultivariateNormal(self.means[tool], torch.diag(torch.exp(self.log_std[tool] - 5)))
             place_sample = place_dist.sample()
@@ -60,26 +57,6 @@ class GaussianToolPolicy(nn.Module):
             action[0] = tool.item()
             action[1:] = place_sample.detach().cpu().numpy()
 
-            # selected_object_name = self.object_names[np.random.randint(0, len(self.object_prior))]
-            # selected_object = self.object_prior[selected_object_name]  # pick the object to interact with
-            # # print(selected_object_name)
-            #
-            # x_value = np.random.rand() * (2 * self.sigma_x + selected_object[0][1] - selected_object[0][0]) + (
-            #             selected_object[0][0] - self.sigma_x)
-            # if x_value < selected_object[0][0]:
-            #     print("left!")
-            #     x_value = np.random.normal(selected_object[0][0], self.sigma_x)
-            # elif x_value > selected_object[0][1]:
-            #     print("right!")
-            #     x_value = np.random.normal(selected_object[0][1], self.sigma_x)
-            # y_value = np.random.normal(selected_object[1], self.sigma_y)
-            # if y_value < selected_object[1]:
-            #     print("below!", selected_object[1] - y_value)
-            # sampled_placement = torch.tensor([x_value, y_value], device=self.device)
-            #
-            # action = np.zeros((3))
-            # action[0] = tool #tool.item()
-            # action[1:] = sampled_placement.cpu().numpy()
             return action
 
         tool_dist = ptd.categorical.Categorical(logits=self.tool_distribution)
@@ -88,7 +65,7 @@ class GaussianToolPolicy(nn.Module):
         sampled_dist_log_std = self.log_std[sampled_tool]
 
         if np.random.rand() < self.epsilon and not prior_only:
-            print("REAL")
+            # print("REAL")
             place_dist = ptd.MultivariateNormal(sampled_dist_mean, torch.diag(torch.exp(sampled_dist_log_std)))
             sampled_placement = place_dist.sample()
 

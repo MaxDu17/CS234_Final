@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 import argparse
 import imageio
 import tqdm
+from collections import deque
 
 class PolicyGradient(object):
     """
@@ -38,7 +39,7 @@ class PolicyGradient(object):
         # self.env.seed(self.seed)
         self.batch_size = batch_size
         # self.lr = 3e-2
-        self.lr = 0.1 #1.5 #0.5
+        self.lr = 0.1 #0.1 #1.5 #0.5
         self.exp_dir = exp_dir
         self.name = name
 
@@ -177,7 +178,7 @@ class PolicyGradient(object):
         # actions = torch.tensor(actions)
         log_probs = self.policy.log_prob(actions) #should be batch size
         loss = -torch.dot(log_probs, advantages) / advantages.shape[0]
-        print(loss)
+        print(loss.item())
         self.optimizer.zero_grad()
         loss.backward()
         # print(self.policy.log_std.grad) #should gbe all populated
@@ -185,52 +186,46 @@ class PolicyGradient(object):
         self.optimizer.step()
         # print(loss)
         # self.policy.print_repr()
+        return loss.item()
 
     def train(self):
-        """
-        Performs training
-
-        You do not have to change or use anything here, but take a look
-        to see how all the code you've written fits together!
-        """
-        last_record = 0
-
         self.init_averages()
         all_total_rewards = (
             []
         )  # the returns of all episodes samples for training purposes
-        averaged_total_rewards = []  # the returns for each iteration
         success_eval = list()
 
         paths, total_rewards = self.sample_path(self.env, num_episodes=10, prior = True)
-        print('BURN-IN')
-        for t in range(30):
-            actions = np.stack([path["action"] for path in paths])
-            rewards = np.stack([path["reward"] for path in paths])
-            returns = rewards  # only true because it's one-step return
-            self.update_policy(actions, returns)
-            self.policy.anneal_epsilon(t)
+        actions = np.stack([path["action"] for path in paths])
+        returns = np.stack([path["reward"] for path in paths]) #only one step
+        rewards_buffer = deque(maxlen=50)
+        rewards_buffer.extend(returns.tolist())
 
+        rwds, succ = self.evaluate(0)
+        print("LOW NOISE EVAL: ", rwds, succ)
+        success_eval.append(succ)
+
+        print('BURN-IN')
+        last_loss = 1000
+        for t in range(100):
+            baseline = sum(rewards_buffer) / len(rewards_buffer) if args.baseline else 0
+            loss = self.update_policy(actions, returns)
+            if last_loss - loss < 0.001:
+                break
+            last_loss = loss
 
         for t in range(args.epochs):
             # collect a minibatch of samples
             paths, total_rewards = self.sample_path(self.env)
             all_total_rewards.extend(total_rewards)
             actions = np.stack([path["action"] for path in paths])
-            rewards = np.stack([path["reward"] for path in paths])
-            returns = rewards #only true because it's one-step return
-
-            # # advantage will depend on the baseline implementation
-            # advantages = self.calculate_advantage(returns, observations)
-            # # run training operations
-            # if self.config.use_baseline:
-            #     self.baseline_network.update_baseline(returns, observations)
-
-            self.update_policy(actions, returns)
+            returns = np.stack([path["reward"] for path in paths]) #only true because it's one-step return
+            rewards_buffer.extend(returns.tolist())
+            baseline = sum(rewards_buffer) / len(rewards_buffer) if args.baseline else 0
+            print("MODIFIED REWARDS" , len(rewards_buffer), returns - baseline)
+            self.update_policy(actions, returns - baseline)
             self.policy.anneal_epsilon(t)
 
-            # loggin
-            # compute reward statistics for this batch and log
             avg_reward = np.mean(total_rewards)
             sigma_reward = np.sqrt(np.var(total_rewards) / len(total_rewards))
             msg = "[ITERATION {}]: Average reward: {:04.2f} +/- {:04.2f}".format(
@@ -239,7 +234,7 @@ class PolicyGradient(object):
             print(msg)
 
             # RENDERING FOR US
-            if t % args.eval_frq == 0:
+            if t % args.eval_frq == 0 and t > 0:
                 rwds, succ= self.evaluate(t)
                 print("LOW NOISE EVAL: ", rwds, succ)
                 success_eval.append(succ)
@@ -255,7 +250,7 @@ class PolicyGradient(object):
 
         fig.savefig(self.exp_dir + f"/{self.name}_level{args.level}_{self.seed}.png")
         np.save(self.exp_dir + f"/{self.name}_level{args.level}_{self.seed}", success_eval)
-        plt.show()
+        # plt.show()
 
     def evaluate(self, step):
         avg_reward = 0
@@ -327,6 +322,12 @@ if __name__ == "__main__":
         "--object_prior",
         action='store_true',
         help="object prior",
+    )
+
+    parser.add_argument(
+        "--baseline",
+        action='store_true',
+        help="subtract average reward",
     )
 
     parser.add_argument(
