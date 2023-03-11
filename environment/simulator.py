@@ -90,7 +90,7 @@ class ToolEnv:
             x_right = int(self.denorm(xlims[1] + sigma_x, self.dims[0]))
             y_bottom = int(self.denorm(ylims[0] - sigma_y, self.dims[1]))
             y_top = int(self.denorm(ylims[1] + sigma_y, self.dims[1]))
-
+            print(object, y_bottom, y_top)
             # x_left = int(((xlims[0] - sigma_x) * (self.dims[0] / 2)) + (self.dims[0] / 2))
             # x_right = int(((xlims[1] + sigma_x) * (self.dims[0] / 2)) + (self.dims[0] / 2))
             # y_bottom = int(((y_lims[0] - sigma_y) * (self.dims[1] / 2)) + (self.dims[1] / 2))
@@ -125,6 +125,22 @@ class ToolEnv:
         plt.savefig(save_dir)
         plt.close()
         # plt.show()
+
+    def visualize_actions(self, actions, save_dir):
+        fig, ax = plt.subplots()
+        ax.imshow(self.img)
+        colors = ["cyan", "green", "purple"]
+
+        points_list = [(list(), list()), (list(), list()), (list(), list())]
+        for action in actions:
+            points_list[int(action[0])][0].append(self.denorm(action[1], self.dims[0]))
+            points_list[int(action[0])][1].append(600 - self.denorm(action[2], self.dims[1])) # for visual purposes
+
+        for i in range(len(points_list)):
+            ax.scatter(points_list[i][0], points_list[i][1], color=colors[i], s=10)
+
+        plt.savefig(save_dir)
+        plt.close()
 
     def find_x_lims(self, pt_list):
         x_min = int(min([v[0] for v in pt_list]))
@@ -185,6 +201,7 @@ class ToolEnv:
         # path_dict, success, time_to_success = self.tp.observePlacementPath(toolname=self.action_dict[action[0]], position=action[1], maxtime=20.)
         path_dict, success, time_to_success, wd = self.tp.observeFullPlacementPath(toolname=tool_name, position=position, maxtime=20., returnDict=True)
         if success is None:
+            print("FAILURE")
             return None
         if not success:
             if not self.shaped:
@@ -233,7 +250,7 @@ class ToolEnv:
 #TODO: object priors must be removed from forbidden regions
 
 # AVOID 12, 13
-# env = ToolEnv(json_dir = "./Trials/Original/", environment = 17) #5 has blocker, and 3
+# env = ToolEnv(json_dir = "./Trials/Original/", environment = 1) #5 has blocker, and 3
 # env.reset()
 # env.visualize_prior(sigma_x = 0.1, sigma_y = 0.7)
 

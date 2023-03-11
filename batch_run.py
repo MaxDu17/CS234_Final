@@ -1,6 +1,6 @@
 import os
 
-levels = [0]
+levels = [3, 5, 6, 7, 8, 9, 10, 11, 14, 15, 16, 17]
 seeds = [1, 2, 3]
 for level in levels:
     for seed in seeds:

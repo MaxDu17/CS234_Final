@@ -116,20 +116,21 @@ class PolicyGradient(object):
                     env.reset()
                     action[0] = i
                     reward = env.step(action)
-                    count = 0
-                    while reward is None and count < 10: #this is done for illegal moves
-                        # print("retrying!")
+                    # count = 0
+                    while reward is None: # and count < 10: #this is done for illegal moves
+                        self.policy.hold()  # this just means that we will not change (either prior or policy)
                         if prior:
                             action = self.policy.act(prior_only = True)
                         else:
                             action = self.policy.act()
                         action[0] = i
                         reward = env.step(action)
-                        count += 1
-                        if count == 10: #on th 10th try, reward automatically is 0
-                            print('gave up!')
-                            reward = 0.0
+                        # count += 1
 
+                        # if count == 10: #on th 10th try, reward automatically is 0
+                        #     print('gave up!')
+                        #     reward = 0.0
+                    self.policy.reset_prior() #reset the prior state after every sampling
                     episode_rewards.append(reward)
 
                     paths.append({
@@ -146,31 +147,10 @@ class PolicyGradient(object):
                     "reward": reward,
                     "action": action.copy(),
                 })
-
         return paths, episode_rewards
 
 
     def update_policy(self, actions, advantages):
-        """
-        Args:
-            observations: np.array of shape [batch size, dim(observation space)]
-            actions: np.array of shape
-                [batch size, dim(action space)] if continuous
-                [batch size] (and integer type) if discrete
-            advantages: np.array of shape [batch size]
-
-        Perform one update on the policy using the provided data.
-        To compute the loss, you will need the log probabilities of the actions
-        given the observations. Note that the policy's action_distribution
-        method returns an instance of a subclass of
-        torch.distributions.Distribution, and that object can be used to
-        compute log probabilities.
-        See https://pytorch.org/docs/stable/distributions.html#distribution
-
-        Note:
-        PyTorch optimizers will try to minimize the loss you compute, but you
-        want to maximize the policy's performance.
-        """
         actions = np2torch(actions)
         advantages = np2torch(advantages)
         #######################################################
@@ -201,6 +181,8 @@ class PolicyGradient(object):
         rewards_buffer = deque(maxlen=50)
         rewards_buffer.extend(returns.tolist())
 
+        self.env.visualize_actions(actions, "action_distr.png")
+
         rwds, succ = self.evaluate(0)
         print("LOW NOISE EVAL: ", rwds, succ)
         success_eval.append(succ)
@@ -214,6 +196,7 @@ class PolicyGradient(object):
                 break
             last_loss = loss
 
+        input("HERE HERE HERE")
         for t in range(args.epochs):
             # collect a minibatch of samples
             paths, total_rewards = self.sample_path(self.env)
