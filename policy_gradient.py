@@ -110,37 +110,46 @@ class PolicyGradient(object):
                 action = self.policy.act(prior_only=True)
             else:
                 action = self.policy.act()
+            self.policy.hold()  # this just means that we will not change (either prior or policy)
             if args.counterfactual:
                 #COUNTERFACTUAL SAMPLING
                 for i in range(3):
                     env.reset()
                     action[0] = i
                     reward = env.step(action)
-                    # count = 0
-                    while reward is None: # and count < 10: #this is done for illegal moves
-                        self.policy.hold()  # this just means that we will not change (either prior or policy)
+                    count = 0
+                    while reward is None: #this is done for illegal moves
                         if prior:
                             action = self.policy.act(prior_only = True)
                         else:
                             action = self.policy.act()
                         action[0] = i
                         reward = env.step(action)
-                        # count += 1
-
-                        # if count == 10: #on th 10th try, reward automatically is 0
-                        #     print('gave up!')
-                        #     reward = 0.0
-                    self.policy.reset_prior() #reset the prior state after every sampling
+                        count += 1
+                        if count == 100: #on th 10th try, reward automatically is 0
+                            print('UNSUCCESSFUL, GIVING REWARD OF ZERO ***')
+                            reward = 0.0
+                            break
                     episode_rewards.append(reward)
-
                     paths.append({
                         "reward": reward,
                         "action": action.copy(),
                     })
+                self.policy.reset_prior()  # reset the prior state after every sampling
             else:
                 env.reset()
                 reward = env.step(action)
-
+                count = 0
+                self.policy.hold()
+                while reward is None:  # this is done for illegal moves
+                    action = self.policy.act()
+                    reward = env.step(action)
+                    count += 1
+                    if count == 100:  # on th 10th try, reward automatically is 0
+                        print('UNSUCCESSFUL, GIVING REWARD OF ZERO ***')
+                        reward = 0.0
+                        break
+                self.policy.reset_prior()
                 episode_rewards.append(reward)
 
                 paths.append({
@@ -189,14 +198,13 @@ class PolicyGradient(object):
 
         print('BURN-IN')
         last_loss = 1000
+        baseline = sum(rewards_buffer) / len(rewards_buffer) if args.baseline else 0
         for t in range(100):
-            baseline = sum(rewards_buffer) / len(rewards_buffer) if args.baseline else 0
-            loss = self.update_policy(actions, returns)
+            loss = self.update_policy(actions, returns - baseline)
             if last_loss - loss < 0.001:
                 break
             last_loss = loss
 
-        input("HERE HERE HERE")
         for t in range(args.epochs):
             # collect a minibatch of samples
             paths, total_rewards = self.sample_path(self.env)
@@ -208,7 +216,6 @@ class PolicyGradient(object):
             print("MODIFIED REWARDS" , len(rewards_buffer), returns - baseline)
             self.update_policy(actions, returns - baseline)
             self.policy.anneal_epsilon(t)
-
             avg_reward = np.mean(total_rewards)
             sigma_reward = np.sqrt(np.var(total_rewards) / len(total_rewards))
             msg = "[ITERATION {}]: Average reward: {:04.2f} +/- {:04.2f}".format(

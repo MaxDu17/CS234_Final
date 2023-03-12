@@ -27,7 +27,7 @@ class GaussianToolPolicy(nn.Module):
         self.device = device
 
         if object_prior is not None:
-            self.eps_begin = 0
+            self.eps_begin = 0.1
             self.sigma_x = 0.1 #how far to sample beyond x limits
             self.sigma_y = 0.7 #how far to sample beyond the y mean
         else:
@@ -35,7 +35,7 @@ class GaussianToolPolicy(nn.Module):
 
         ##########
 
-        self.eps_end = 0 #TODO: temporary disabling annealing
+        self.eps_end = 0.8
         self.epsilon = self.eps_begin
         self.nsteps = nsteps
         self.retry_state = None #are we in prior or normal model mode?
@@ -59,13 +59,12 @@ class GaussianToolPolicy(nn.Module):
         # normal running: retry stays false, and everything else doesn't matter
 
     def hold(self):
-        print('HOLD HOLD HOLD')
+        # print('HOLD HOLD HOLD')
         self.retry = True
         assert self.retry_state is not None
         assert self.retry_state != "prior" or self.prior_state is not None
 
     def act(self, obs = None, low_noise = False, prior_only = False): #does not take an observation
-        #TODO: keep track of which area we try
         if low_noise:
             tool = torch.argmax(self.tool_distribution)
             place_dist = ptd.MultivariateNormal(self.means[tool], torch.diag(torch.exp(self.log_std[tool] - 5)))
@@ -83,6 +82,8 @@ class GaussianToolPolicy(nn.Module):
 
         # We use the policy if we 1) are retrying the policy or 2) we are in epsilon and not retrying
         if (self.retry and self.retry_state == "policy") or (np.random.rand() < self.epsilon and not prior_only and not self.retry):
+            if self.retry:
+                print("\t\tRETRYING POLICY")
             assert self.retry_state is None or self.retry_state == "policy"
             place_dist = ptd.MultivariateNormal(sampled_dist_mean, torch.diag(torch.exp(sampled_dist_log_std)))
             sampled_placement = place_dist.sample()
@@ -106,10 +107,11 @@ class GaussianToolPolicy(nn.Module):
             if above: #this logic is roundabout, but it helps us replay the prior selection
                 y_value = selected_object[1][1] + abs(y_samp)
             else:
-                y_value = selected_object[1][0] + abs(y_samp)
+                y_value = selected_object[1][0] - abs(y_samp)
 
             sampled_placement = torch.tensor([x_value, y_value], device = self.device)
             # this won't update until we manually reset the retry_state flag
+            # print([x_value, y_value])
             self.prior_state = (selected_object_name,above)
             self.retry_state = "prior" #this is what you did last
 

@@ -38,6 +38,30 @@ class ToolEnv:
 
         self.img = np.array(self.tp.drawPathSingleImage(wd = None, path = None))
 
+        # BASELINE DISTANCE
+        # this is a really big hack, but it works
+        path_dict, success, time_to_success, wd = self.tp._ctx.call('getGWPathAndRotPlacement', self.tp._worlddict,
+                                                                   self.tp._tools["obj1"], [-100, -100], 20,
+                                                                   self.tp.bts, {}, {})
+
+        if "Goal" in wd["objects"]:
+            goal = wd["objects"]["Goal"]
+        else:
+            goal_list = [v for k, v in wd["objects"].items() if v["type"] == "Goal"]
+            assert len(goal_list) == 1 #only supports one goal right now
+            goal = goal_list[0]
+
+        try:
+            self.middle_of_goal = self.middle_of(goal["points"])
+        except KeyError:
+            self.middle_of_goal = self.middle_of(goal["vertices"])  # janky, but this works
+        self.balls = [v for k, v in path_dict.items() if "Ball" in k]
+
+        min_distances = list()
+        for ball in self.balls:
+            min_distances.append(min([self.dist(pt, self.middle_of_goal) for pt in ball[0]]))
+        self.baseline_ball = min(min_distances)
+
         self.object_prior_dict = {}
         for key, value in meaningful_objects.items():
             if value["type"] == "Ball":
@@ -91,10 +115,6 @@ class ToolEnv:
             y_bottom = int(self.denorm(ylims[0] - sigma_y, self.dims[1]))
             y_top = int(self.denorm(ylims[1] + sigma_y, self.dims[1]))
             print(object, y_bottom, y_top)
-            # x_left = int(((xlims[0] - sigma_x) * (self.dims[0] / 2)) + (self.dims[0] / 2))
-            # x_right = int(((xlims[1] + sigma_x) * (self.dims[0] / 2)) + (self.dims[0] / 2))
-            # y_bottom = int(((y_lims[0] - sigma_y) * (self.dims[1] / 2)) + (self.dims[1] / 2))
-            # y_top = int(((y_lims[1] + sigma_y) * (self.dims[1] / 2)) + (self.dims[1] / 2))
             y_bottom = max(0, y_bottom)
             y_top = min(600, y_top)
 
@@ -108,10 +128,6 @@ class ToolEnv:
         plt.show()
 
     def visualize_distributions(self, means, stdevs, save_dir = "policy.png"):
-        # import ipdb
-        # ipdb.set_trace()
-        # img = np.array(self.tp.drawPathSingleImage())
-
         fig, ax = plt.subplots()
         ax.imshow(self.img)
         colors = ["cyan", "green", "purple"]
@@ -157,19 +173,6 @@ class ToolEnv:
         self.last_path = None
         self.state = None
 
-
-    def clip(self, arr):
-        if arr[0] < 0:
-            arr[0] = 0
-        if arr[0] > self.dims[0]:
-            arr[0] = self.dims[0]
-        if arr[1] < 0:
-            arr[1] = 0
-        if arr[1] > self.dims[1]:
-            arr[1] = self.dims[1]
-
-        return arr
-
     def middle_of(self, pts_list):
         npts = len(pts_list)
         middle = [0, 0]
@@ -194,6 +197,10 @@ class ToolEnv:
                            (self.dims[0] - self.tool_x_lim_dict[tool_name], self.dims[0] - self.tool_y_lim_dict[tool_name]))
         position = position.tolist()
 
+        if position[1] > 600: #shouldn't go here
+            import ipdb
+            ipdb.set_trace()
+
         assert tool_select <= 2 and tool_select >= 0
         # position = self.clip(position)
 
@@ -201,31 +208,34 @@ class ToolEnv:
         # path_dict, success, time_to_success = self.tp.observePlacementPath(toolname=self.action_dict[action[0]], position=action[1], maxtime=20.)
         path_dict, success, time_to_success, wd = self.tp.observeFullPlacementPath(toolname=tool_name, position=position, maxtime=20., returnDict=True)
         if success is None:
-            print("FAILURE")
+            # print("FAILURE")
             return None
         if not success:
             if not self.shaped:
                 return 0.0
             #shaped reward
             # demonstrateTPPlacement(self.tp, self.action_dict[tool_select], position)
-            if "Goal" in wd["objects"]:
-                goal = wd["objects"]["Goal"]
-            else:
-                goal_list = [v for k, v in wd["objects"].items() if v["type"] == "Goal"]
-                assert len(goal_list) == 1
-                goal = goal_list[0]
-            try:
-                middle_of_goal = self.middle_of(goal["points"])
-            except KeyError:
-                middle_of_goal = self.middle_of(goal["vertices"]) #janky, but this works
-            balls = [v for k, v in path_dict.items() if "Ball" in k]
+            # if "Goal" in wd["objects"]:
+            #     goal = wd["objects"]["Goal"]
+            # else:
+            #     goal_list = [v for k, v in wd["objects"].items() if v["type"] == "Goal"]
+            #     assert len(goal_list) == 1
+            #     goal = goal_list[0]
+            # try:
+            #     middle_of_goal = self.middle_of(goal["points"])
+            # except KeyError:
+            #     middle_of_goal = self.middle_of(goal["vertices"]) #janky, but this works
+            # balls = [v for k, v in path_dict.items() if "Ball" in k]
 
-            baseline_distances = list()
+            # baseline_distances = list()
             min_distances = list()
-            for ball in balls:
-                baseline_distances.append(self.dist(ball[0][0], middle_of_goal))
-                min_distances.append(min([self.dist(pt, middle_of_goal) for pt in ball[0]]))
-            reward = 1 - min(min_distances) / min(baseline_distances)
+            for ball in self.balls:
+                # baseline_distances.append(self.dist(ball[0][0], self.middle_of_goal))
+                min_distances.append(min([self.dist(pt, self.middle_of_goal) for pt in ball[0]]))
+            if min(min_distances) > self.baseline_ball:
+                import ipdb
+                ipdb.set_trace()
+            reward = 1 - min(min_distances) / self.baseline_ball
         else:
             reward = 1.0
 
@@ -245,13 +255,16 @@ class ToolEnv:
             return img_arr
         return None
 
-#
-
-#TODO: object priors must be removed from forbidden regions
 
 # AVOID 12, 13
 # env = ToolEnv(json_dir = "./Trials/Original/", environment = 1) #5 has blocker, and 3
 # env.reset()
+# # x = env.tp._ctx.call('runGWPlacement', env.tp._worlddict, env.tp._tools["obj1"],
+# #                               [-100, -100], 20, env.tp.bts, {}, {})
+#
+# path_dict, success, time_to_success, wd = env.tp._ctx.call('getGWPathAndRotPlacement', env.tp._worlddict,
+#                               env.tp._tools["obj1"], [-100, -100], 20,
+#                               env.tp.bts, {}, {})
 # env.visualize_prior(sigma_x = 0.1, sigma_y = 0.7)
 
 # # action = np.array([0, 90, 400])

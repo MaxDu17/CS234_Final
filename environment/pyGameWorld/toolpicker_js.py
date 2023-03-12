@@ -195,6 +195,7 @@ class ToolPicker(object):
             imgs = makeImageArray(worlddict, path, sample_ratio)
         imgdata = np.array([pg.surfarray.array3d(img).swapaxes(0,1) for img in imgs])
         return imgdata
+
     #THIS IS A TEST
     def drawPathSingleImage(self, wd = None, path = None, with_tools=False):
         if wd is None:
