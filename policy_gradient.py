@@ -205,7 +205,7 @@ class PolicyGradient(object):
                 break
             last_loss = loss
 
-        for t in range(args.epochs):
+        for t in range(args.epochs + 1):
             # collect a minibatch of samples
             paths, total_rewards = self.sample_path(self.env)
             all_total_rewards.extend(total_rewards)
@@ -228,11 +228,12 @@ class PolicyGradient(object):
                 rwds, succ= self.evaluate(t)
                 print("LOW NOISE EVAL: ", rwds, succ)
                 success_eval.append(succ)
-
+                torch.save(self.policy.state_dict(),
+                           self.exp_dir + f"/{self.name}_level{args.level}_{self.seed}_{t}.pt")  # saves everything from the state dictionary
             # self.env.render(t)
         fig, ax = plt.subplots()
         print(success_eval)
-        x_axis = np.arange(0, args.epochs, args.eval_frq)
+        x_axis = np.arange(0, args.epochs + 1, args.eval_frq)
         ax.plot(x_axis, success_eval)
         ax.set_ylabel("Success Rate")
         ax.set_xlabel("Epochs")

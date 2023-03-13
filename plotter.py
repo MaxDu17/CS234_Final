@@ -4,21 +4,28 @@ import numpy as np
 import scipy.stats as stats
 
 
-root_directory = "experiments/pg_seeds"
+root_directory = "experiments/real_exp_longer"
 seeds = [1, 2, 3]
 # runs = ["ablate_reward", "ablate_counterfactual", "ablate_prior", "full_algorithm"]
 levels = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 14, 15, 16, 17]
+worlds = [x.split(".")[0].replace("_", " ") for x in os.listdir("environment/Trials/Original")]
 
-for level in levels:
-    print(level)
+rows = 4
+cols = 5
+fig, axes = plt.subplots(rows,cols, figsize=(10, 6))
+
+for i, level in enumerate(levels):
+    # print(level)
+
     runs = [f"full_algorithm_noanneal_level{level}"]
 
-    fig, ax = plt.subplots()
+    print(i)
+    ax = axes[i // cols][i % cols]
 
     line_list = list()
     name_list = list()
 
-    x_axis = np.arange(0, 200, 20)
+    x_axis = np.arange(0, 400, 20)
 
     for run in runs:
         run_data = list()
@@ -32,13 +39,28 @@ for level in levels:
         except:
             errs = np.zeros_like(means)
 
-        plt.fill_between(x_axis, means - errs, means + errs, alpha=0.25)
-        plt.plot(x_axis, means, label=run)
+        ax.fill_between(x_axis, means - errs, means + errs, alpha=0.25, color = "green")
+        ax.plot(x_axis, means, label=run, color = "green")
+        ax.tick_params(axis='x', labelrotation = 45)
+        ax.label_outer() #critical for labeling outer grid only
+        ax.set_xlim(-20, 400)
+        ax.set_ylim(-0.05, 1.05)
+        ax.set_title(f"{worlds[level]}")
 
-    ax.set_ylabel("Success Rate")
-    ax.set_xlabel("Epochs")
-    ax.set_title(f"Level {level} Performance (3 seeds)")
-    plt.legend()
+for i in range(len(levels), rows * cols):
+    ax = axes[i // cols][i % cols]
+    ax.label_outer()  # critical for labeling outer grid only
+    ax.set_xlim(-20, 400)
+    ax.set_ylim(-0.05, 1.05)
 
-    fig.savefig(f"level{level}.png")
+    # ax.set_ylabel("Success Rate")
+    # ax.set_xlabel("Epochs")
+fig.suptitle("Performance on All Environments")
+fig.supxlabel('Trials')
+fig.supylabel('Success Rate')
+fig.tight_layout()
+# plt.legend()
+plt.show()
+# fig.savefig(f"level{level}.png")
+fig.savefig(f"ALLRESULTS.png")
     # plt.show()

@@ -8,6 +8,7 @@ import random
 import imageio
 import numpy as np
 import math
+from PIL import Image
 
 import matplotlib.pyplot as plt
 import matplotlib
@@ -84,6 +85,7 @@ class ToolEnv:
                 raise Exception("unregisetered object!")
             # recentering around [-1, 1]
             if self.inside_forbidden(x_lims, y_lims, blocker_x_list, blocker_y_list):
+                print(x_lims, y_lims, blocker_x_list, blocker_y_list, "FORBIDDEN")
                 continue
             x_lims[0] = self.norm(x_lims[0], self.dims[0])
             x_lims[1] = self.norm(x_lims[1], self.dims[0])
@@ -93,9 +95,10 @@ class ToolEnv:
             self.object_prior_dict[key] = (x_lims, y_lims)
 
     def inside_forbidden(self, x_lims, y_lims, blocker_x_lims, blocker_y_lims):
+
         for bx_lim, by_lim in zip(blocker_x_lims, blocker_y_lims):
             if x_lims[0] > bx_lim[0] and x_lims[1] < bx_lim[1]:
-                if y_lims[0] > by_lim[0] and y_lims[1] < by_lim[1]:
+                if y_lims[0] > by_lim[0] and y_lims[1] < by_lim[1] and by_lim[0] == 0 and by_lim[1] == 600:
                     return True
         return False
 
@@ -105,10 +108,10 @@ class ToolEnv:
     def denorm(self, x, orig_scale):
         return (x * (orig_scale / 2) + (orig_scale / 2))
 
-    def visualize_prior(self, sigma_x, sigma_y):
+    def visualize_prior(self, sigma_x, sigma_y, savedir):
         # img = np.array(self.tp.drawPathSingleImage())
         img = self.img.copy()
-        target_color = np.array([255, 0, 0])
+        target_color = np.array([255, 255, 0])
         for object, (xlims, ylims) in self.object_prior_dict.items():
             x_left = int(self.denorm(xlims[0] - sigma_x, self.dims[0]))
             x_right = int(self.denorm(xlims[1] + sigma_x, self.dims[0]))
@@ -123,9 +126,10 @@ class ToolEnv:
             img[600 - int(self.denorm(ylims[0], self.dims[1])) : 600 - y_bottom, x_left : x_right] = \
                 0.5 * img[600 - int(self.denorm(ylims[0], self.dims[1])) : 600 - y_bottom, x_left : x_right] + 0.5 * target_color
         fig, ax = plt.subplots()
+        plt.axis('off')
         ax.imshow(img)
-        plt.savefig("prior.png")
-        plt.show()
+        plt.savefig(savedir,bbox_inches='tight')
+        # plt.show()
 
     def visualize_distributions(self, means, stdevs, save_dir = "policy.png"):
         fig, ax = plt.subplots()
@@ -232,9 +236,9 @@ class ToolEnv:
             for ball in self.balls:
                 # baseline_distances.append(self.dist(ball[0][0], self.middle_of_goal))
                 min_distances.append(min([self.dist(pt, self.middle_of_goal) for pt in ball[0]]))
-            if min(min_distances) > self.baseline_ball:
-                import ipdb
-                ipdb.set_trace()
+            # if min(min_distances) > self.baseline_ball:
+            #     import ipdb
+            #     ipdb.set_trace()
             reward = 1 - min(min_distances) / self.baseline_ball
         else:
             reward = 1.0
@@ -255,17 +259,30 @@ class ToolEnv:
             return img_arr
         return None
 
+    def display_env_with_tools(self, savedir):
+        data = pg.image.tostring(drawWorldWithTools(self.tp, backgroundOnly=False), "RGBA")
+        img = Image.frombytes('RGBA', (750, 600), data)
+        img.save(savedir)
 
-# AVOID 12, 13
-# env = ToolEnv(json_dir = "./Trials/Original/", environment = 1) #5 has blocker, and 3
-# env.reset()
+
+if __name__ == "__main__":
+    for i in range(18):
+        print(i)
+        env = ToolEnv(json_dir="./Trials/Original/", environment=i)  # 5 has blocker, and 3
+        env.reset()
+        if i == 12 or i == 13:
+            sigma = 1.3
+        else:
+            sigma = 0.7
+        env.visualize_prior(sigma_x = 0.1, sigma_y = sigma, savedir = f"../visuals/priors/prior_{i}.png")
+        env.display_env_with_tools(savedir = f"../visuals/env/{i}.png")
+
 # # x = env.tp._ctx.call('runGWPlacement', env.tp._worlddict, env.tp._tools["obj1"],
 # #                               [-100, -100], 20, env.tp.bts, {}, {})
 #
 # path_dict, success, time_to_success, wd = env.tp._ctx.call('getGWPathAndRotPlacement', env.tp._worlddict,
 #                               env.tp._tools["obj1"], [-100, -100], 20,
 #                               env.tp.bts, {}, {})
-# env.visualize_prior(sigma_x = 0.1, sigma_y = 0.7)
 
 # # action = np.array([0, 90, 400])
 # action = np.array([0, 300, 500])
