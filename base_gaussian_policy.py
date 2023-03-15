@@ -29,7 +29,8 @@ class GaussianToolPolicy(nn.Module):
         if object_prior is not None:
             self.eps_begin = 0.1
             self.sigma_x = 0.1 #how far to sample beyond x limits
-            self.sigma_y = 0.7 #how far to sample beyond the y mean
+            # TODO: change this back to 0.7
+            self.sigma_y = 0.7 # 1.4 #how far to sample beyond the y mean
         else:
             self.eps_begin = 1
 

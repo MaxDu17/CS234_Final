@@ -240,6 +240,7 @@ class ToolEnv:
             #     import ipdb
             #     ipdb.set_trace()
             reward = 1 - min(min_distances) / self.baseline_ball
+            # reward = 1 - min(min_distances) / min(baseline_distances)
         else:
             reward = 1.0
 
