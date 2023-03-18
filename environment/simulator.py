@@ -1,6 +1,8 @@
-from pyGameWorld import PGWorld, ToolPicker
+from .pyGameWorld import PGWorld, ToolPicker
+#from .pypyGameWorld import PGWorld
+
 # from pyGameWorld.viewer import demonstrateTPPlacement
-from pyGameWorld.viewer import *
+from .pyGameWorld.viewer import *
 import json
 import pygame as pg
 import os
@@ -195,6 +197,7 @@ class ToolEnv:
     def step(self, action: np.array, display = False):
         tool_select = action[0]
         tool_name = self.action_dict[tool_select]
+        #print(tool_name)
         position = (action[1 : ] + 1) * (self.dims[0] / 2) #shift and scale from (-1, 1) to (0, 600)
         # clips intelligently; does not allow tool to be illegally over the edge
         position = np.clip(position, (self.tool_x_lim_dict[tool_name], self.tool_y_lim_dict[tool_name]),
@@ -211,6 +214,7 @@ class ToolEnv:
         # path_dict, success, time_to_success = self.tp.observePlacementPath(toolname="obj1", position=(90, 400), maxtime=20.)
         # path_dict, success, time_to_success = self.tp.observePlacementPath(toolname=self.action_dict[action[0]], position=action[1], maxtime=20.)
         path_dict, success, time_to_success, wd = self.tp.observeFullPlacementPath(toolname=tool_name, position=position, maxtime=20., returnDict=True)
+        #print("Sucess, ", success)
         if success is None:
             # print("FAILURE")
             return None

@@ -223,9 +223,11 @@ class ToolPicker(object):
         #        return True
         #return False
         if any(np.array(position) <= 0.0) or any(np.array(position)>=600.0):
+            print("Position is out of bounds")
             return True
         if self._pycheck:
             for tverts in self._tools[toolname]:
+                #print(tverts)
                 if self._pyworld.checkCollision(position, tverts):
                     return True
             return False
@@ -283,6 +285,7 @@ class ToolPicker(object):
         tool = self._tools[toolname]
         # Make sure the tool can be placed
         if self.checkPlacementCollide(toolname, position):
+            #print("Collision?")
             return None, None, -1, None
         if stopOnGoal:
             wd = self._worlddict

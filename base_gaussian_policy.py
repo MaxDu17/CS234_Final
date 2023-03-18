@@ -73,6 +73,7 @@ class GaussianToolPolicy(nn.Module):
             action = np.zeros((3))
             action[0] = tool.item()
             action[1:] = place_sample.detach().cpu().numpy()
+            print(action)
 
             return action
 
