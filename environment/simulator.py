@@ -201,10 +201,6 @@ class ToolEnv:
                            (self.dims[0] - self.tool_x_lim_dict[tool_name], self.dims[0] - self.tool_y_lim_dict[tool_name]))
         position = position.tolist()
 
-        if position[1] > 600: #shouldn't go here
-            import ipdb
-            ipdb.set_trace()
-
         assert tool_select <= 2 and tool_select >= 0
         # position = self.clip(position)
 
@@ -212,33 +208,14 @@ class ToolEnv:
         # path_dict, success, time_to_success = self.tp.observePlacementPath(toolname=self.action_dict[action[0]], position=action[1], maxtime=20.)
         path_dict, success, time_to_success, wd = self.tp.observeFullPlacementPath(toolname=tool_name, position=position, maxtime=20., returnDict=True)
         if success is None:
-            # print("FAILURE")
             return None
         if not success:
             if not self.shaped:
                 return 0.0
-            #shaped reward
-            # demonstrateTPPlacement(self.tp, self.action_dict[tool_select], position)
-            # if "Goal" in wd["objects"]:
-            #     goal = wd["objects"]["Goal"]
-            # else:
-            #     goal_list = [v for k, v in wd["objects"].items() if v["type"] == "Goal"]
-            #     assert len(goal_list) == 1
-            #     goal = goal_list[0]
-            # try:
-            #     middle_of_goal = self.middle_of(goal["points"])
-            # except KeyError:
-            #     middle_of_goal = self.middle_of(goal["vertices"]) #janky, but this works
-            # balls = [v for k, v in path_dict.items() if "Ball" in k]
-
-            # baseline_distances = list()
             min_distances = list()
             for ball in self.balls:
                 # baseline_distances.append(self.dist(ball[0][0], self.middle_of_goal))
                 min_distances.append(min([self.dist(pt, self.middle_of_goal) for pt in ball[0]]))
-            # if min(min_distances) > self.baseline_ball:
-            #     import ipdb
-            #     ipdb.set_trace()
             reward = 1 - min(min_distances) / self.baseline_ball
             # reward = 1 - min(min_distances) / min(baseline_distances)
         else:
@@ -249,7 +226,12 @@ class ToolEnv:
         #path_dict["Ball"] contains trajectory of the ball through time
         if display:
             print('demoed')
-            demonstrateTPPlacement(self.tp, self.action_dict[tool_select], position)
+            # demonstrateTPPlacement(self.tp, self.action_dict[tool_select], position)
+            x = drawPathSingleImage(wd, path_dict, pathSize=3, lighten_amt=.5)
+            data = pg.image.tostring(x, "RGBA")
+            img = Image.frombytes('RGBA', (600, 600), data)
+            img.save("test.png")
+
 
         #perchance derive from path_dict the rewaard
         return reward
@@ -267,16 +249,24 @@ class ToolEnv:
 
 
 if __name__ == "__main__":
-    for i in range(18):
-        print(i)
-        env = ToolEnv(json_dir="./Trials/Original/", environment=i)  # 5 has blocker, and 3
-        env.reset()
-        if i == 12 or i == 13:
-            sigma = 1.3
-        else:
-            sigma = 0.7
-        env.visualize_prior(sigma_x = 0.1, sigma_y = sigma, savedir = f"../visuals/priors/prior_{i}.png")
-        env.display_env_with_tools(savedir = f"../visuals/env/{i}.png")
+    env = ToolEnv(json_dir="./Trials/Original/", environment=3)  # 5 has blocker, and 3
+    env.reset()
+    # env.step(np.array([0, 0, -0.8]), display = True) #works for level 1
+    # env.step(np.array([0, -0.65, 0.6]), display = True) #works for level 0
+    # env.step(np.array([1, 0.45, 0.6]), display = True) #works for level 2
+    env.step(np.array([0, -0.8, 0.8]), display = True) #works for level 3
+
+
+    # for i in range(18):
+    #     print(i)
+    #     env = ToolEnv(json_dir="./Trials/Original/", environment=i)  # 5 has blocker, and 3
+    #     env.reset()
+    #     if i == 12 or i == 13:
+    #         sigma = 1.3
+    #     else:
+    #         sigma = 0.7
+    #     env.visualize_prior(sigma_x = 0.1, sigma_y = sigma, savedir = f"../visuals/priors/prior_{i}.png")
+    #     env.display_env_with_tools(savedir = f"../visuals/env/{i}.png")
 
 # # x = env.tp._ctx.call('runGWPlacement', env.tp._worlddict, env.tp._tools["obj1"],
 # #                               [-100, -100], 20, env.tp.bts, {}, {})
