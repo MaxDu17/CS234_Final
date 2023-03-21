@@ -3,19 +3,28 @@ import os
 import numpy as np
 import scipy.stats as stats
 
+fig, ax= plt.subplots()
 
+level = 1
 root_directory = "experiments/ablations"
 seeds = [1, 2, 3, 4, 5, 6]
 
-fig, ax= plt.subplots()
-level = 1
-
 runs = [f"full_algorithm_level{level}",
         f"no_prior_level{level}",
-        f"no_counterfactual_level{level}",
+        # f"no_counterfactual_level{level}",
         f"no_baseline_level{level}",
         f"no_burn_in_level{level}",
         f"fixed_epsilon_level{level}"]
+
+# level = 0
+# root_directory = "experiments/tool"
+# seeds = [4, 5, 6]
+#
+# runs = [f"counterfactual_level{level}",
+#         f"pseudo_thompson_level{level}",
+#         f"pseudo-ucb_level{level}",
+#         f"pseudo-greedy_level{level}",
+#         f"pseudo-epsilon-greedy_level{level}"]
 
 line_list = list()
 name_list = list()
@@ -39,7 +48,7 @@ for i, run in enumerate(runs):
     ax.fill_between(x_axis, means - errs, means + errs, alpha=0.15, color = color_list[i])
     label = run.split("level")[0]
     label = label.replace("_", " ")
-    ax.plot(x_axis, means, label=label, linewidth = 3, color = color_list[i])
+    ax.plot(x_axis, means, label=label, linewidth = 2, color = color_list[i])
     # ax.tick_params(axis='x', labelrotation = 45)
     # ax.label_outer() #critical for labeling outer grid only
     # ax.set_xlim(, 800)
@@ -47,12 +56,14 @@ for i, run in enumerate(runs):
     # ax.set_title(f"{worlds[level]}")
 
 
-fig.suptitle("Ablations")
+fig.suptitle("Tool Sampling Algorithms")
 # fig.supylabel('Success Rate')
 # fig.supxlabel('Trials')
 fig.tight_layout()
 plt.legend(loc = "lower center", bbox_to_anchor=(0.8, 0.12), ncol = 1, framealpha=.9, facecolor='white')
+# plt.legend(loc = "lower center", bbox_to_anchor=(0.22, 0.65), ncol = 1, framealpha=.9, facecolor='white')
 plt.show()
 
 
 fig.savefig(f"ABLATIONS.png")
+# fig.savefig(f"SAMPLING.png")

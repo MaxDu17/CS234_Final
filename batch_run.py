@@ -18,6 +18,34 @@ seeds = [4,5,6]
 ## ABBLATIONS
 for seed in seeds:
     # os.system(f'python policy_gradient.py --seed {seed}  '
+    #           f'--level {0} --name "counterfactual" --eval_trials 20 '
+    #           '--eval_frq 20 --batch_size 1 --epochs 400  '
+    #           '--exp_dir "experiments/tool" --shaped_reward --counterfactual --object_prior'
+    # )
+    # os.system(f'python policy_gradient.py --seed {seed}  '
+    #           f'--level {0} --name "pseudo_thompson" --eval_trials 20 '
+    #           '--eval_frq 20 --batch_size 1 --epochs 400  '
+    #           '--exp_dir "experiments/tool" --shaped_reward --object_prior'
+    # )
+    # os.system(f'python policy_gradient.py --seed {seed}  '
+    #           f'--level {0} --name "pseudo-ucb" --eval_trials 20 '
+    #           '--eval_frq 20 --batch_size 1 --epochs 400  '
+    #           '--exp_dir "experiments/tool" --shaped_reward --object_prior'
+    # )
+    # os.system(f'python policy_gradient.py --seed {seed}  '
+    #           f'--level {0} --name "pseudo-greedy" --eval_trials 20 '
+    #           '--eval_frq 20 --batch_size 1 --epochs 400  '
+    #           '--exp_dir "experiments/tool" --shaped_reward --object_prior'
+    # )
+
+    os.system(f'python policy_gradient.py --seed {seed}  '
+              f'--level {0} --name "pseudo-epsilon-greedy" --eval_trials 20 '
+              '--eval_frq 20 --batch_size 1 --epochs 400  '
+              '--exp_dir "experiments/tool" --shaped_reward --object_prior'
+    )
+
+
+    # os.system(f'python policy_gradient.py --seed {seed}  '
     #           f'--level {1} --name "full_algorithm" --eval_trials 20 '
     #           '--eval_frq 20 --batch_size 1 --epochs 400  '
     #           '--exp_dir "experiments/ablations" --shaped_reward --counterfactual --object_prior'
@@ -42,9 +70,9 @@ for seed in seeds:
     #           '--eval_frq 20 --batch_size 1 --epochs 400  '
     #           '--exp_dir "experiments/ablations" --shaped_reward --counterfactual --object_prior'
     #           )
-    os.system(f'python policy_gradient.py --seed {seed}  '
-              f'--level {1} --name "fixed_epsilon" --eval_trials 20 '
-              '--eval_frq 20 --batch_size 1 --epochs 400  '
-              '--exp_dir "experiments/ablations" --shaped_reward --counterfactual --object_prior'
-              )
+    # os.system(f'python policy_gradient.py --seed {seed}  '
+    #           f'--level {1} --name "fixed_epsilon" --eval_trials 20 '
+    #           '--eval_frq 20 --batch_size 1 --epochs 400  '
+    #           '--exp_dir "experiments/ablations" --shaped_reward --counterfactual --object_prior'
+    #           )
 

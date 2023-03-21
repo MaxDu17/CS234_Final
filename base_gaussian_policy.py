@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 import torch.distributions as ptd
 import numpy as np
-
+import math
 
 class GaussianToolPolicy(nn.Module):
     def __init__(self, ntools, nsteps, object_prior, device):
@@ -42,6 +42,11 @@ class GaussianToolPolicy(nn.Module):
         self.retry_state = None #are we in prior or normal model mode?
         self.prior_state = None #what object and where (up or down) are we sampling from?
         self.retry = False # are we in retry mode?
+        self.sampled_tool = None
+        self.tool_count = [0.1, 0.1, 0.1] #
+        self.step = 0
+        self.ucb = [0, 0, 0]
+        self.tool_epsilon = 0.1
 
     def px_to_action(self, val):
         # helper function that scales pixels to the value
@@ -50,13 +55,24 @@ class GaussianToolPolicy(nn.Module):
 
     def anneal_epsilon(self, t):
         self.epsilon = self.eps_begin + (min(t, self.nsteps) / self.nsteps) * (self.eps_end - self.eps_begin)
+        # self.tool_epsilon = 0.1 + (min(t, self.nsteps) / self.nsteps) * (1 - 0.1)
         print("annealed!", self.epsilon)
+        self.step = t
 
     def reset_prior(self):
         # print('RESET PRIOR')
         self.retry_state = None
         self.prior_state = None
         self.retry = False
+
+        assert self.sampled_tool is not None
+        self.tool_count[self.sampled_tool] += 1
+        # self.ucb[0] = math.sqrt(2 * math.log(80 * (self.step + 1)) / self.tool_count[0])
+        # self.ucb[1] = math.sqrt(2 * math.log(80 * (self.step + 1)) / self.tool_count[1])
+        # self.ucb[2] = math.sqrt(2 * math.log(80 * (self.step + 1)) / self.tool_count[2])
+        # print("THIS IS THE UCB", self.ucb, self.tool_count, self.tool_distribution)
+        self.sampled_tool = None
+
         # normal running: retry stays false, and everything else doesn't matter
 
     def hold(self):
@@ -78,13 +94,23 @@ class GaussianToolPolicy(nn.Module):
 
         tool_dist = ptd.categorical.Categorical(logits=self.tool_distribution)
         sampled_tool = tool_dist.sample()
+        # if np.random.rand() < self.tool_epsilon:
+        #     sampled_tool = torch.argmax(self.tool_distribution)
+        # else:
+        #     sampled_tool = torch.randint(3, (1,))[0]
+
+        # x = self.tool_distribution.detach().cpu().numpy()
+        # x += np.array(self.ucb)
+        # sampled_tool = np.argmax(x)
+
         sampled_dist_mean = self.means[sampled_tool]
         sampled_dist_log_std = self.log_std[sampled_tool]
+        self.sampled_tool = sampled_tool
 
         # We use the policy if we 1) are retrying the policy or 2) we are in epsilon and not retrying
         if (self.retry and self.retry_state == "policy") or (np.random.rand() < self.epsilon and not prior_only and not self.retry):
-            if self.retry:
-                print("\t\tRETRYING POLICY")
+            # if self.retry:
+            #     print("\t\tRETRYING POLICY")
             assert self.retry_state is None or self.retry_state == "policy"
             place_dist = ptd.MultivariateNormal(sampled_dist_mean, torch.diag(torch.exp(sampled_dist_log_std)))
             sampled_placement = place_dist.sample()
@@ -92,8 +118,8 @@ class GaussianToolPolicy(nn.Module):
         else:
             assert (not self.retry) or self.retry_state == "prior" # we are either in normal mode, or forced prior
             assert (not self.retry) or self.prior_state is not None #if we are retrying prior, we need to keep track!
-            if self.retry:
-                print("\t\tRETRYING PRIOR", self.prior_state)
+            # if self.retry:
+            #     print("\t\tRETRYING PRIOR", self.prior_state)
             selected_object_name = self.object_names[np.random.randint(0, len(self.object_prior))] if not self.retry else self.prior_state[0]
             selected_object = self.object_prior[selected_object_name] #pick the object to interact with
 
