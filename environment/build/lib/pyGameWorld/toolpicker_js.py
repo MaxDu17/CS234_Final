@@ -196,8 +196,13 @@ class ToolPicker(object):
         imgdata = np.array([pg.surfarray.array3d(img).swapaxes(0,1) for img in imgs])
         return imgdata
 
-    def drawPathSingleImage(self, wd, path, with_tools=False):
-        if path is None:
+    #THIS IS A TEST
+    def drawPathSingleImage(self, wd = None, path = None, with_tools=False):
+        if wd is None:
+            world = loadFromDict(self._worlddict)
+            sc = drawWorld(world, backgroundOnly=False)
+            img = sc
+        elif path is None:
             world = loadFromDict(wd)
             sc = drawWorld(world, backgroundOnly=False)
             img = sc
